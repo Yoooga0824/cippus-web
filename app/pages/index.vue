@@ -1,13 +1,11 @@
 <script setup lang="ts">
 const appConfig = useAppConfig();
-const links = ref([{ label: "登录", to: "/login" }]);
 </script>
 
 <template>
   <UPageCTA
-    :title="appConfig.name"
+    :title="appConfig.title"
     :description="appConfig.description"
-    :links="links"
     orientation="horizontal"
   >
     <img src="/logo.svg" alt="logo" />

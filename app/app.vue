@@ -1,27 +1,14 @@
 <script setup lang="ts">
+import { zh_cn } from "@nuxt/ui/locale";
 const appConfig = useAppConfig();
 useHead({
   titleTemplate: (title) =>
-    title ? `${title} - ${appConfig.name}` : appConfig.name,
-});
-
-onMounted(() => {
-  console.log(
-    String.raw`%c
- __   __     ______     ______     ______     __
-/\ "-.\ \   /\  __ \   /\  __ \   /\  ___\   /\ \
-\ \ \-.  \  \ \  __ \  \ \ \/\ \  \ \___  \  \ \ \
- \ \_\\"\_\  \ \_\ \_\  \ \_____\  \/\_____\  \ \_\
-  \/_/ \/_/   \/_/\/_/   \/_____/   \/_____/   \/_/
-`,
-    "color: green;"
-  );
-  console.log("Powered by NAOSI-DLUT. https://naosi.org/");
+    title ? `${title} - ${appConfig.title}` : appConfig.title,
 });
 </script>
 
 <template>
-  <UApp>
+  <UApp :locale="zh_cn">
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
