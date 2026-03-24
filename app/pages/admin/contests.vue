@@ -1,44 +1,15 @@
 <script setup lang="ts">
-const UDropdownMenu = resolveComponent("UDropdownMenu");
 const UButton = resolveComponent("UButton");
 
-definePageMeta({
-  layout: "admin",
-});
+const { data: contests, refresh } = await useFetch("/api/admin/contests");
 
-const { data: contests } = await useFetch("/api/admin/contests");
 const columns = [
   { accessorKey: "id", header: "#" },
   { accessorKey: "title", header: "标题" },
   { accessorKey: "description", header: "描述" },
   { accessorKey: "createdAt", header: "创建时间" },
   { accessorKey: "updatedAt", header: "更新时间" },
-  {
-    id: "actions",
-    cell: ({ row }: any) => {
-      return h(
-        UDropdownMenu,
-        {
-          items: [
-            {
-              label: "编辑赛事",
-              onClick: () => {
-                currentContest.value = row.original;
-                openModal.value = true;
-              },
-            },
-          ],
-        },
-        () => {
-          return h(UButton, {
-            icon: "i-lucide-ellipsis-vertical",
-            color: "neutral",
-            variant: "ghost",
-          });
-        },
-      );
-    },
-  },
+  { id: "actions", header: "操作" },
 ];
 const openModal = ref(false);
 const currentContest = ref<any>({
@@ -46,12 +17,24 @@ const currentContest = ref<any>({
   description: "",
 });
 
-function createContest() {
+function openModalEditor(item?: any) {
+  if (item) {
+    currentContest.value = item;
+  } else {
+    currentContest.value = {
+      title: "",
+      description: "",
+    };
+  }
   openModal.value = true;
-  currentContest.value = {
-    title: "",
-    description: "",
-  };
+}
+
+function closeModal() {
+  openModal.value = false;
+}
+
+function createContest() {
+  openModalEditor();
 }
 
 async function updateContest() {
@@ -69,33 +52,49 @@ async function updateContest() {
       });
     }
   }
-  contests.value = await $fetch<any>("/api/admin/contests");
-  openModal.value = false;
+  refresh();
+  closeModal();
 }
 </script>
 
 <template>
-  <UDashboardNavbar title="赛事管理">
+  <UDashboardNavbar title="竞赛管理">
     <template #right>
-      <UButton @click="createContest">新建赛事</UButton>
+      <UButton @click="createContest">新建竞赛</UButton>
     </template>
   </UDashboardNavbar>
-  <UTable :data="contests" :columns />
-  <UModal v-model:open="openModal" title="编辑赛事">
+  <UTable :data="contests" :columns>
+    <template #createdAt-cell="{ row }">
+      {{ new Date(row.original.createdAt).toLocaleString() }}
+    </template>
+    <template #updatedAt-cell="{ row }">
+      {{ new Date(row.original.updatedAt).toLocaleString() }}
+    </template>
+    <template #actions-cell="{ row }">
+      <UButton
+        icon="i-lucide-edit"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        @click="openModalEditor(row.original)"
+      />
+    </template>
+  </UTable>
+  <UModal v-model:open="openModal" title="编辑竞赛">
     <template #body>
       <UForm class="flex flex-col gap-2" @submit="updateContest">
         <UFormField label="标题" name="title" required>
           <UInput
             class="w-full"
             v-model="currentContest.title"
-            placeholder="请输入赛事标题"
+            placeholder="请输入竞赛标题"
           />
         </UFormField>
         <UFormField label="描述" name="description">
           <UTextarea
             class="w-full"
             v-model="currentContest.description"
-            placeholder="请输入赛事描述"
+            placeholder="请输入竞赛描述"
           />
         </UFormField>
       </UForm>

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import dayjs from "dayjs";
-
 const { data: activities } = await useFetch("/api/activities");
 
 const posts = computed(() => {
@@ -18,6 +16,8 @@ const posts = computed(() => {
 <template>
   <UContainer>
     <UPageHeader title="申报列表" />
-    <UBlogPosts :posts />
+    <UPageBody>
+      <UBlogPosts :posts />
+    </UPageBody>
   </UContainer>
 </template>

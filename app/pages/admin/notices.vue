@@ -1,44 +1,17 @@
 <script setup lang="ts">
-const UDropdownMenu = resolveComponent("UDropdownMenu");
 const UButton = resolveComponent("UButton");
 
-definePageMeta({
-  layout: "admin",
-});
+const { data: notices, refresh: refreshNotices } = await useFetch(
+  "/api/admin/notices"
+);
 
-const { data: notices } = await useFetch("/api/admin/notices");
 const columns = [
   { accessorKey: "id", header: "#" },
   { accessorKey: "title", header: "标题" },
   { accessorKey: "category", header: "分类" },
   { accessorKey: "createdAt", header: "创建时间" },
   { accessorKey: "updatedAt", header: "更新时间" },
-  {
-    id: "actions",
-    cell: ({ row }: any) => {
-      return h(
-        UDropdownMenu,
-        {
-          items: [
-            {
-              label: "编辑公告",
-              onClick: () => {
-                currentNotice.value = row.original;
-                openModal.value = true;
-              },
-            },
-          ],
-        },
-        () => {
-          return h(UButton, {
-            icon: "i-lucide-ellipsis-vertical",
-            color: "neutral",
-            variant: "ghost",
-          });
-        },
-      );
-    },
-  },
+  { id: "actions", header: "操作" },
 ];
 const openModal = ref(false);
 const currentNotice = ref<any>({
@@ -47,13 +20,25 @@ const currentNotice = ref<any>({
   content: "",
 });
 
-function createNotice() {
+function openModalEditor(item?: any) {
+  if (item) {
+    currentNotice.value = item;
+  } else {
+    currentNotice.value = {
+      title: "",
+      category: "",
+      content: "",
+    };
+  }
   openModal.value = true;
-  currentNotice.value = {
-    title: "",
-    category: "",
-    content: "",
-  };
+}
+
+function closeModal() {
+  openModal.value = false;
+}
+
+function createNotice() {
+  openModalEditor();
 }
 
 async function updateNotice() {
@@ -71,8 +56,8 @@ async function updateNotice() {
       });
     }
   }
-  notices.value = await $fetch<any>("/api/admin/notices");
-  openModal.value = false;
+  await refreshNotices();
+  closeModal();
 }
 </script>
 
@@ -82,7 +67,23 @@ async function updateNotice() {
       <UButton @click="createNotice">新建公告</UButton>
     </template>
   </UDashboardNavbar>
-  <UTable :data="notices" :columns />
+  <UTable :data="notices" :columns>
+    <template #createdAt-cell="{ row }">
+      {{ new Date(row.original.createdAt).toLocaleString() }}
+    </template>
+    <template #updatedAt-cell="{ row }">
+      {{ new Date(row.original.updatedAt).toLocaleString() }}
+    </template>
+    <template #actions-cell="{ row }">
+      <UButton
+        icon="i-lucide-edit"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        @click="openModalEditor(row.original)"
+      />
+    </template>
+  </UTable>
   <UModal v-model:open="openModal" title="编辑公告">
     <template #body>
       <UForm class="flex flex-col gap-2" @submit="updateNotice">

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { AuthFormProps, FormSubmitEvent } from "@nuxt/ui";
 const { fetch } = useUserSession();
-const appConfig = useAppConfig();
+const { public: config } = useRuntimeConfig();
 const toast = useToast();
 const providers = ref([
   {
     label: "通过统一身份认证登录",
     icon: "i-lucide-log-in",
-    to: `${appConfig.casBaseUrl}/login?service=${appConfig.casServiceUrl}`,
+    to: `${config.casBaseUrl}/login?service=${config.casServiceUrl}`,
   },
 ]);
 
@@ -33,10 +33,14 @@ function login(payload: FormSubmitEvent<any>) {
       await fetch();
       navigateTo("/");
     })
-    .catch((err) => {
-      console.log(err);
+    .catch((e: any) => {
+      console.log(e);
       
-      toast.add({ title: err.toString(), color: "error" });
+      toast.add({
+        title: "登录失败",
+        description: e?.data?.message || e?.message,
+        color: "error",
+      });
     });
 }
 </script>

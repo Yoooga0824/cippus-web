@@ -1,9 +1,10 @@
+import { eq } from "drizzle-orm";
 import { db, schema } from "@nuxthub/db";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
 
-  const [user] = await db
+  const [inserted] = await db
     .insert(schema.users)
     .values({
       username: body.username,
@@ -14,7 +15,21 @@ export default defineEventHandler(async (event) => {
       college: body.college,
       admin: body.admin,
     })
-    .returning();
+    .returning({ id: schema.users.id });
 
-  return user;
+  if (!inserted)
+    throw createError({ statusCode: 500, statusMessage: "创建用户失败" });
+
+  return await db.query.users.findFirst({
+    where: eq(schema.users.id, inserted.id),
+    columns: {
+      id: true,
+      username: true,
+      name: true,
+      email: true,
+      gender: true,
+      college: true,
+      admin: true,
+    },
+  });
 });

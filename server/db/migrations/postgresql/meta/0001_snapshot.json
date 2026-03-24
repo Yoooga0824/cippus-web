@@ -1,6 +1,6 @@
 {
-  "id": "d94f840d-d977-477e-b816-4131cea3604b",
-  "prevId": "e00b384b-323f-45a0-a19a-29f84f059341",
+  "id": "41c65da1-058a-463f-8226-3fc65cedd036",
+  "prevId": "b236bcb9-5eae-492b-9320-89a329189766",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -104,8 +104,8 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
         },
         "applications_award_id_awards_id_fk": {
           "name": "applications_award_id_awards_id_fk",
@@ -117,8 +117,8 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -163,6 +163,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "evidences": {
+          "name": "evidences",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
         "status": {
           "name": "status",
           "type": "review_status",
@@ -170,6 +177,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'draft'"
+        },
+        "date": {
+          "name": "date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
@@ -180,7 +194,34 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "awards_user_id_users_id_fk": {
+          "name": "awards_user_id_users_id_fk",
+          "tableFrom": "awards",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "awards_contest_id_contests_id_fk": {
+          "name": "awards_contest_id_contests_id_fk",
+          "tableFrom": "awards",
+          "tableTo": "contests",
+          "columnsFrom": [
+            "contest_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -226,6 +267,86 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.innovations": {
+      "name": "innovations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "innovation_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "evidences": {
+          "name": "evidences",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "status": {
+          "name": "status",
+          "type": "review_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "date": {
+          "name": "date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "innovations_user_id_users_id_fk": {
+          "name": "innovations_user_id_users_id_fk",
+          "tableFrom": "innovations",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -283,6 +404,166 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.papers": {
+      "name": "papers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "paper_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "evidences": {
+          "name": "evidences",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "status": {
+          "name": "status",
+          "type": "review_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "date": {
+          "name": "date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "papers_user_id_users_id_fk": {
+          "name": "papers_user_id_users_id_fk",
+          "tableFrom": "papers",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.patents": {
+      "name": "patents",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "patent_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "evidences": {
+          "name": "evidences",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "status": {
+          "name": "status",
+          "type": "review_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "date": {
+          "name": "date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "patents_user_id_users_id_fk": {
+          "name": "patents_user_id_users_id_fk",
+          "tableFrom": "patents",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.users": {
       "name": "users",
       "schema": "",
@@ -327,8 +608,7 @@
           "name": "gender",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'male'"
+          "notNull": false
         },
         "college": {
           "name": "college",
@@ -368,7 +648,8 @@
       "values": [
         "national",
         "provincial",
-        "university",
+        "municipal",
+        "school",
         "college"
       ]
     },
@@ -376,15 +657,44 @@
       "name": "award_type",
       "schema": "public",
       "values": [
-        "team_first_prize",
-        "team_second_prize",
-        "team_third_prize",
-        "individual_1st",
-        "individual_2nd",
-        "individual_3rd",
-        "individual_4th",
-        "individual_5th",
-        "individual_6th"
+        "first_prize",
+        "second_prize",
+        "third_prize",
+        "first_place",
+        "second_place",
+        "third_place",
+        "fourth_place",
+        "fifth_place",
+        "sixth_place",
+        "other",
+        "recommended_not_awarded"
+      ]
+    },
+    "public.innovation_type": {
+      "name": "innovation_type",
+      "schema": "public",
+      "values": [
+        "excellent",
+        "qualified"
+      ]
+    },
+    "public.paper_type": {
+      "name": "paper_type",
+      "schema": "public",
+      "values": [
+        "influential",
+        "other"
+      ]
+    },
+    "public.patent_type": {
+      "name": "patent_type",
+      "schema": "public",
+      "values": [
+        "domestic_invention",
+        "international_invention",
+        "utility_model",
+        "design",
+        "software_copyright"
       ]
     },
     "public.review_status": {

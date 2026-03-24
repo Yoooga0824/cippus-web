@@ -5,15 +5,22 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1772681753522,
-      "tag": "0000_smart_shard",
+      "when": 1773379525675,
+      "tag": "0000_fuzzy_reavers",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1772687454507,
-      "tag": "0001_next_luckman",
+      "when": 1773385539187,
+      "tag": "0001_aberrant_master_chief",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773836286271,
+      "tag": "0002_volatile_magneto",
       "breakpoints": true
     }
   ]
