@@ -59,9 +59,11 @@ const awardForm = reactive({
   level: undefined as AwardLevel | undefined,
   type: undefined as AwardType | undefined,
   date: "",
+  members: [] as string[],
   evidences: [] as string[],
 });
 const awardUploadFiles = ref<File[]>([]);
+const awardMembersTags = ref<string[]>([]);
 
 const openRecord = ref(false);
 const savingRecord = ref(false);
@@ -72,9 +74,11 @@ const recordForm = reactive({
   name: "",
   type: undefined as PaperType | PatentType | InnovationType | undefined,
   date: "",
+  members: [] as string[],
   evidences: [] as string[],
 });
 const recordUploadFiles = ref<File[]>([]);
+const recordMembersTags = ref<string[]>([]);
 
 const genderItems = ref([
   { label: "男", value: "male" },
@@ -219,6 +223,39 @@ function getRecordTypeLabel(kind: RecordKind, value: string) {
   }
 }
 
+function normalizeMembersList(value: string[] | undefined) {
+  return Array.from(
+    new Set(
+      (value || [])
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+    ),
+  );
+}
+
+function containsSelfMember(members: string[]) {
+  const currentUsername = username.value.trim().toLowerCase();
+  if (!currentUsername) {
+    return false;
+  }
+
+  return members.some((member) => member.trim().toLowerCase() === currentUsername);
+}
+
+function defaultMembers() {
+  return username.value ? [username.value] : [];
+}
+
+function canEditOwnedRecord(ownerUserId: number | undefined) {
+  if (!canEditRecords.value) {
+    return false;
+  }
+
+  const ownerId = Number(ownerUserId || 0);
+  const currentProfileId = Number(user.value?.id || 0);
+  return ownerId > 0 && ownerId === currentProfileId;
+}
+
 function startEdit() {
   if (!user.value) {
     return;
@@ -239,13 +276,15 @@ function startAddAward() {
   awardForm.level = undefined;
   awardForm.type = undefined;
   awardForm.date = "";
+  awardForm.members = defaultMembers();
+  awardMembersTags.value = [...awardForm.members];
   awardForm.evidences = [];
   awardUploadFiles.value = [];
   openAward.value = true;
 }
 
 function startEditAward(award: AwardWithContest) {
-  if (!canEditRecords.value) {
+  if (!canEditOwnedRecord(Number((award as any).userId))) {
     return;
   }
 
@@ -254,6 +293,11 @@ function startEditAward(award: AwardWithContest) {
   awardForm.level = award.level as AwardLevel;
   awardForm.type = award.type as AwardType;
   awardForm.date = normalizeDateText(award.date);
+  awardForm.members =
+    Array.isArray((award as any).members) && (award as any).members.length
+      ? [...((award as any).members as string[])]
+      : defaultMembers();
+  awardMembersTags.value = [...awardForm.members];
   awardForm.evidences = [...(award.evidences || [])];
   awardUploadFiles.value = [];
   openAward.value = true;
@@ -263,7 +307,7 @@ function startRecord(
   kind: RecordKind,
   item?: PaperRecord | PatentRecord | InnovationRecord,
 ) {
-  if (!canEditRecords.value) {
+  if (item && !canEditOwnedRecord(Number((item as any).userId))) {
     return;
   }
 
@@ -277,6 +321,12 @@ function startRecord(
     | InnovationType
     | undefined;
   recordForm.date = normalizeDateText(item?.date);
+  recordForm.members = item
+    ? Array.isArray((item as any).members) && (item as any).members.length
+      ? [...((item as any).members as string[])]
+      : defaultMembers()
+    : defaultMembers();
+  recordMembersTags.value = [...recordForm.members];
   recordForm.evidences = [...((item?.evidences as string[] | undefined) || [])];
   recordUploadFiles.value = [];
   openRecord.value = true;
@@ -341,6 +391,16 @@ async function saveAward(status: UserSubmitStatus) {
     return;
   }
 
+  awardForm.members = normalizeMembersList(awardMembersTags.value);
+  if (!awardForm.members.length) {
+    toast.add({ title: "请至少填写一个成员用户名", color: "warning" });
+    return;
+  }
+  if (!containsSelfMember(awardForm.members)) {
+    toast.add({ title: "成员排序必须包含自己，不能代申请", color: "warning" });
+    return;
+  }
+
   try {
     savingAward.value = true;
     const uploadedEvidences = await uploadEvidences(awardUploadFiles.value);
@@ -356,6 +416,7 @@ async function saveAward(status: UserSubmitStatus) {
             level: awardForm.level,
             type: awardForm.type,
             date: awardForm.date,
+            members: awardForm.members,
             evidences,
             status,
           },
@@ -374,6 +435,7 @@ async function saveAward(status: UserSubmitStatus) {
           level: awardForm.level,
           type: awardForm.type,
           date: awardForm.date,
+          members: awardForm.members,
           evidences,
           status,
         },
@@ -442,6 +504,16 @@ async function saveRecord() {
     return;
   }
 
+  recordForm.members = normalizeMembersList(recordMembersTags.value);
+  if (!recordForm.members.length) {
+    toast.add({ title: "请至少填写一个成员用户名", color: "warning" });
+    return;
+  }
+  if (!containsSelfMember(recordForm.members)) {
+    toast.add({ title: "成员排序必须包含自己，不能代申请", color: "warning" });
+    return;
+  }
+
   const path = getRecordPath(currentRecordKind.value);
 
   try {
@@ -458,6 +530,7 @@ async function saveRecord() {
             name: recordForm.name,
             type: recordForm.type,
             date: recordForm.date,
+            members: recordForm.members,
             evidences,
             status: "pending",
           },
@@ -475,6 +548,7 @@ async function saveRecord() {
           name: recordForm.name,
           type: recordForm.type,
           date: recordForm.date,
+          members: recordForm.members,
           evidences,
           status: "pending",
         },
@@ -518,6 +592,16 @@ async function saveRecordDraft() {
     return;
   }
 
+  recordForm.members = normalizeMembersList(recordMembersTags.value);
+  if (!recordForm.members.length) {
+    toast.add({ title: "请至少填写一个成员用户名", color: "warning" });
+    return;
+  }
+  if (!containsSelfMember(recordForm.members)) {
+    toast.add({ title: "成员排序必须包含自己，不能代申请", color: "warning" });
+    return;
+  }
+
   const path = getRecordPath(currentRecordKind.value);
 
   try {
@@ -531,6 +615,7 @@ async function saveRecordDraft() {
         name: recordForm.name,
         type: recordForm.type,
         date: recordForm.date,
+        members: recordForm.members,
         evidences,
         status: "draft",
       },
@@ -603,7 +688,7 @@ async function saveRecordDraft() {
             <UPageCard
               v-for="award in awardsList"
               :key="award.id"
-              :class="canEditRecords ? 'cursor-pointer' : ''"
+              :class="canEditOwnedRecord(award.userId) ? 'cursor-pointer' : ''"
               :title="award.contest?.title || '未知比赛'"
               @click="startEditAward(award)"
             >
@@ -625,6 +710,13 @@ async function saveRecordDraft() {
                       variant="outline"
                     >
                       附件 {{ (award.evidences || []).length }}
+                    </UBadge>
+                    <UBadge color="neutral" variant="outline">
+                      成员
+                      {{
+                        (((award as any).members as string[] | undefined) || [])
+                          .length
+                      }}
                     </UBadge>
                     <UBadge
                       :color="statusColor(award.status)"
@@ -657,7 +749,7 @@ async function saveRecordDraft() {
             <UPageCard
               v-for="paper in papersList"
               :key="paper.id"
-              :class="canEditRecords ? 'cursor-pointer' : ''"
+              :class="canEditOwnedRecord(paper.userId) ? 'cursor-pointer' : ''"
               :title="paper.name"
               @click="startRecord('paper', paper)"
             >
@@ -674,6 +766,13 @@ async function saveRecordDraft() {
                       variant="outline"
                     >
                       附件 {{ (paper.evidences || []).length }}
+                    </UBadge>
+                    <UBadge color="neutral" variant="outline">
+                      成员
+                      {{
+                        (((paper as any).members as string[] | undefined) || [])
+                          .length
+                      }}
                     </UBadge>
                     <UBadge
                       :color="statusColor(paper.status)"
@@ -706,7 +805,7 @@ async function saveRecordDraft() {
             <UPageCard
               v-for="patent in patentsList"
               :key="patent.id"
-              :class="canEditRecords ? 'cursor-pointer' : ''"
+              :class="canEditOwnedRecord(patent.userId) ? 'cursor-pointer' : ''"
               :title="patent.name"
               @click="startRecord('patent', patent)"
             >
@@ -723,6 +822,15 @@ async function saveRecordDraft() {
                       variant="outline"
                     >
                       附件 {{ (patent.evidences || []).length }}
+                    </UBadge>
+                    <UBadge color="neutral" variant="outline">
+                      成员
+                      {{
+                        (
+                          ((patent as any).members as string[] | undefined) ||
+                          []
+                        ).length
+                      }}
                     </UBadge>
                     <UBadge
                       :color="statusColor(patent.status)"
@@ -755,7 +863,9 @@ async function saveRecordDraft() {
             <UPageCard
               v-for="innovation in innovationsList"
               :key="innovation.id"
-              :class="canEditRecords ? 'cursor-pointer' : ''"
+              :class="
+                canEditOwnedRecord(innovation.userId) ? 'cursor-pointer' : ''
+              "
               :title="innovation.name"
               @click="startRecord('innovation', innovation)"
             >
@@ -774,6 +884,16 @@ async function saveRecordDraft() {
                       variant="outline"
                     >
                       附件 {{ (innovation.evidences || []).length }}
+                    </UBadge>
+                    <UBadge color="neutral" variant="outline">
+                      成员
+                      {{
+                        (
+                          ((innovation as any).members as
+                            | string[]
+                            | undefined) || []
+                        ).length
+                      }}
                     </UBadge>
                     <UBadge
                       :color="statusColor(innovation.status)"
@@ -883,6 +1003,13 @@ async function saveRecordDraft() {
           <UFormField label="获奖时间" name="date" required>
             <UInput v-model="awardForm.date" class="w-full" type="date" />
           </UFormField>
+          <UFormField
+            label="成员排序"
+            name="members"
+            description="按顺序输入成员用户名，顺序用于排名系数计算"
+          >
+            <UInputTags v-model="awardMembersTags" class="w-full" />
+          </UFormField>
           <UFormField label="佐证材料" name="evidences">
             <EvidenceUpload
               v-model="awardUploadFiles"
@@ -937,6 +1064,13 @@ async function saveRecordDraft() {
           </UFormField>
           <UFormField label="时间" name="date" required>
             <UInput v-model="recordForm.date" class="w-full" type="date" />
+          </UFormField>
+          <UFormField
+            label="成员排序"
+            name="members"
+            description="按顺序输入成员用户名，顺序用于排名系数计算"
+          >
+            <UInputTags v-model="recordMembersTags" class="w-full" />
           </UFormField>
           <UFormField label="佐证材料" name="evidences">
             <EvidenceUpload
