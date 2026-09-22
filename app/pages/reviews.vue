@@ -573,12 +573,21 @@ function certificateStatusOf(item: TableRecord) {
 }
 
 // 已通过审核、且尚未补充过（或被拒后允许重来）的成果，才可以补充证书。
+// 注意：首次申报时就填过证书日期的，不再显示补充入口。
 function canSupplementCertificate(item: TableRecord) {
   if (item.status !== "approved") {
     return false;
   }
+
   const status = certificateStatusOf(item);
-  return status === "none" || status === "rejected";
+  if (status === "rejected") {
+    return true;
+  }
+  if (status !== "none") {
+    return false;
+  }
+
+  return !(item as any).certificateDate;
 }
 
 function openCertificateModal(item: TableRecord) {

@@ -43,9 +43,22 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  // 审核通过时，把证书佐证并入「佐证材料」，便于统一查看
   const [updated] = await db
     .update(schema.patents)
-    .set({ certificateStatus: body.status })
+    .set(
+      body.status === "approved"
+        ? {
+            certificateStatus: body.status,
+            evidences: Array.from(
+              new Set([
+                ...(current.evidences || []),
+                ...(current.certificateEvidences || []),
+              ]),
+            ),
+          }
+        : { certificateStatus: body.status },
+    )
     .where(eq(schema.patents.id, id))
     .returning();
 

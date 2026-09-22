@@ -56,6 +56,19 @@ function formatDateTimeText(value: unknown) {
   return new Date(String(value)).toLocaleString();
 }
 
+function statusColor(status: unknown) {
+  switch (String(status ?? "")) {
+    case "pending":
+      return "warning";
+    case "approved":
+      return "success";
+    case "rejected":
+      return "error";
+    default:
+      return "neutral";
+  }
+}
+
 function formatMembersText(members: unknown) {
   if (!Array.isArray(members)) {
     return "";
@@ -217,7 +230,32 @@ async function reviewCertificate(status: "approved" | "rejected") {
           {{ formatDateTimeText(row.original.date) }}
         </template>
         <template #status-cell="{ row }">
-          {{ t(`status.${row.original.status}`) }}
+          <div class="flex flex-wrap items-center gap-1">
+            <UBadge :color="statusColor(row.original.status)" variant="outline">
+              {{ t(`status.${row.original.status}`) }}
+            </UBadge>
+            <UBadge
+              v-if="row.original.certificateStatus === 'pending'"
+              color="warning"
+              variant="subtle"
+            >
+              证书待审
+            </UBadge>
+            <UBadge
+              v-else-if="row.original.certificateStatus === 'rejected'"
+              color="error"
+              variant="subtle"
+            >
+              证书被拒
+            </UBadge>
+            <UBadge
+              v-else-if="row.original.certificateStatus === 'approved'"
+              color="success"
+              variant="subtle"
+            >
+              证书已通过
+            </UBadge>
+          </div>
         </template>
         <template #updatedAt-cell="{ row }">
           {{ formatDateTimeText(row.original.updatedAt) }}
