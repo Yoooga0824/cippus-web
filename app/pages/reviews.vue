@@ -655,7 +655,7 @@ watch(formKind, () => resetForm());
             <UFormField label="获奖时间" name="date" required>
               <UInput v-model="form.date" class="w-full" type="date" />
             </UFormField>
-            <UFormField label="证书时间" name="certificateDate">
+            <UFormField label="证书时间（可选）" name="certificateDate">
               <UInput v-model="form.certificateDate" class="w-full" type="date" />
             </UFormField>
             <UFormField label="成员排序（输入学号后点击回车保存）" name="members">
