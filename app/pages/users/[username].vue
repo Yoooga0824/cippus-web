@@ -137,6 +137,10 @@ const approvedAwards = computed(() => awardsList.value.filter((item) => item.sta
 const approvedPapers = computed(() => papersList.value.filter((item) => item.status === "approved"));
 const approvedPatents = computed(() => patentsList.value.filter((item) => item.status === "approved"));
 const approvedInnovations = computed(() => innovationsList.value.filter((item) => item.status === "approved"));
+// 个人主页的「奖项」栏不展示已拒绝的成果
+const visibleAwardsList = computed(() =>
+  awardsList.value.filter((item) => item.status !== "rejected"),
+);
 const claimedInnovationSourceKeys = computed(() => {
   const claimed = new Set<string>();
 
@@ -882,7 +886,7 @@ async function saveRecordDraft() {
         <UPageCard title="奖项">
           <UPageGrid cols="1 sm:2 md:3" gap="4" class="mt-4">
             <UPageCard
-              v-for="award in awardsList"
+              v-for="award in visibleAwardsList"
               :key="award.id"
               :title="award.contest?.title || '未知比赛'"
             >
@@ -931,7 +935,7 @@ async function saveRecordDraft() {
             </UPageCard>
           </UPageGrid>
           <UEmpty
-            v-if="!isSelf && !awardsList.length"
+            v-if="!isSelf && !visibleAwardsList.length"
             variant="naked"
             title="暂无奖项"
           />
