@@ -568,8 +568,6 @@ function pathForRecordKind(kind: AchievementKind) {
       return "innovations";
   }
 }
-
-watch(formKind, () => resetForm());
 </script>
 
 <template>
@@ -659,7 +657,12 @@ watch(formKind, () => resetForm());
         <template #body>
           <UForm class="space-y-4" @submit.prevent="onFormSubmit">
             <UFormField v-if="!selectedRecord" label="成果类型" name="achievementType" required>
-              <USelect v-model="formKind" :items="kindItems" class="w-full" />
+              <USelect
+                v-model="formKind"
+                :items="kindItems"
+                class="w-full"
+                @update:model-value="resetForm"
+              />
             </UFormField>
             <fieldset :disabled="viewOnly" class="m-0 min-w-0 space-y-4 border-0 p-0">
               <template v-if="formKind === 'award'">
