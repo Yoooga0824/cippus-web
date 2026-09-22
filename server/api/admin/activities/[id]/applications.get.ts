@@ -19,10 +19,16 @@ export default defineEventHandler(async (event) => {
   const applications = await db.query.applications.findMany({
     where: eq(schema.applications.activityId, activityId),
     with: {
-      user: true,
+      user: {
+        columns: {
+          id: true,
+          username: true,
+          name: true,
+        },
+      },
       items: true,
     },
-    orderBy: desc(schema.applications.totalScore),
+    orderBy: desc(schema.applications.effectiveTotalScore),
   });
 
   const rows = await Promise.all(
@@ -32,6 +38,9 @@ export default defineEventHandler(async (event) => {
       userId: application.userId,
       user: application.user,
       totalScore: application.totalScore,
+      effectiveTotalScore: application.effectiveTotalScore,
+      effectiveScoreManual: application.effectiveScoreManual,
+      scoreSummary: application.scoreSummary,
       status: application.status,
       createdAt: application.createdAt,
       updatedAt: application.updatedAt,

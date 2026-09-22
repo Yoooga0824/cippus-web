@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 const route = useRoute();
 const { user: sessionUser } = useUserSession();
 const toast = useToast();
@@ -42,7 +42,9 @@ if (!user.value) {
 }
 
 const openEdit = ref(false);
+const openDisplay = ref(false);
 const saving = ref(false);
+const savingDisplay = ref(false);
 const form = reactive({
   name: "",
   bio: "",
@@ -50,6 +52,12 @@ const form = reactive({
   gender: "",
   college: "",
   password: "",
+});
+const displayForm = reactive({
+  award: [] as number[],
+  paper: [] as number[],
+  patent: [] as number[],
+  innovation: [] as number[],
 });
 
 const openAward = ref(false);
@@ -125,6 +133,10 @@ const awardsList = computed(() => awards.value || []);
 const papersList = computed(() => papers.value || []);
 const patentsList = computed(() => patents.value || []);
 const innovationsList = computed(() => innovations.value || []);
+const approvedAwards = computed(() => awardsList.value.filter((item) => item.status === "approved"));
+const approvedPapers = computed(() => papersList.value.filter((item) => item.status === "approved"));
+const approvedPatents = computed(() => patentsList.value.filter((item) => item.status === "approved"));
+const approvedInnovations = computed(() => innovationsList.value.filter((item) => item.status === "approved"));
 const claimedInnovationSourceKeys = computed(() => {
   const claimed = new Set<string>();
 
@@ -371,6 +383,29 @@ function startEdit() {
   openEdit.value = true;
 }
 
+function syncDisplayForm() {
+  const displayAchievements = (user.value?.displayAchievements || {}) as Record<string, number[]>;
+  displayForm.award = [...(displayAchievements.award || [])];
+  displayForm.paper = [...(displayAchievements.paper || [])];
+  displayForm.patent = [...(displayAchievements.patent || [])];
+  displayForm.innovation = [...(displayAchievements.innovation || [])];
+}
+
+function startDisplay() {
+  syncDisplayForm();
+  openDisplay.value = true;
+}
+
+function toggleDisplay(kind: keyof typeof displayForm, id: number, checked: boolean) {
+  const values = new Set(displayForm[kind]);
+  if (checked) {
+    values.add(id);
+  } else {
+    values.delete(id);
+  }
+  displayForm[kind] = [...values];
+}
+
 function startAddAward() {
   selectedAward.value = undefined;
   awardForm.contestId = undefined;
@@ -470,6 +505,43 @@ async function saveProfile() {
     });
   } finally {
     saving.value = false;
+  }
+}
+
+async function saveDisplay() {
+  if (savingDisplay.value) {
+    return;
+  }
+
+  try {
+    savingDisplay.value = true;
+    await $fetch("/api/users", {
+      method: "PUT",
+      body: {
+        displayAchievements: {
+          award: displayForm.award,
+          paper: displayForm.paper,
+          patent: displayForm.patent,
+          innovation: displayForm.innovation,
+        },
+      },
+    });
+    await refreshUser();
+    openDisplay.value = false;
+    toast.add({
+      title: "展示设置已保存",
+      color: "success",
+      icon: "i-lucide-check",
+    });
+  } catch (e: any) {
+    toast.add({
+      title: "保存失败",
+      description: e?.data?.message || e?.message,
+      color: "error",
+      icon: "i-lucide-circle-alert",
+    });
+  } finally {
+    savingDisplay.value = false;
   }
 }
 
@@ -782,6 +854,13 @@ async function saveRecordDraft() {
         <UButton
           v-if="isSelf"
           variant="outline"
+          icon="i-lucide-eye"
+          label="展示设置"
+          @click="startDisplay"
+        />
+        <UButton
+          v-if="isSelf"
+          variant="outline"
           icon="i-lucide-pencil"
           label="编辑资料"
           @click="startEdit"
@@ -803,19 +882,9 @@ async function saveRecordDraft() {
         <UPageCard title="奖项">
           <UPageGrid cols="1 sm:2 md:3" gap="4" class="mt-4">
             <UPageCard
-              v-if="canEditRecords"
-              class="cursor-pointer"
-              icon="i-lucide-plus"
-              description="添加奖项"
-              spotlight
-              @click="startAddAward"
-            />
-            <UPageCard
               v-for="award in awardsList"
               :key="award.id"
-              :class="canEditOwnedRecord(award.userId) ? 'cursor-pointer' : ''"
               :title="award.contest?.title || '未知比赛'"
-              @click="startEditAward(award)"
             >
               <template #description>
                 <div class="space-y-2">
@@ -854,7 +923,7 @@ async function saveRecordDraft() {
                       :color="statusColor(award.status)"
                       variant="outline"
                     >
-                      {{ t(`awards.status.${award.status}`) }}
+                      {{ t(`status.${award.status}`) }}
                     </UBadge>
                   </div>
                 </div>
@@ -871,19 +940,9 @@ async function saveRecordDraft() {
         <UPageCard title="论文">
           <UPageGrid cols="1 sm:2 md:3" gap="4" class="mt-4">
             <UPageCard
-              v-if="canEditRecords"
-              class="cursor-pointer"
-              icon="i-lucide-plus"
-              description="添加论文"
-              spotlight
-              @click="startRecord('paper')"
-            />
-            <UPageCard
               v-for="paper in papersList"
               :key="paper.id"
-              :class="canEditOwnedRecord(paper.userId) ? 'cursor-pointer' : ''"
               :title="paper.name"
-              @click="startRecord('paper', paper)"
             >
               <template #description>
                 <div class="space-y-2">
@@ -917,7 +976,7 @@ async function saveRecordDraft() {
                       :color="statusColor(paper.status)"
                       variant="outline"
                     >
-                      {{ t(`awards.status.${paper.status}`) }}
+                      {{ t(`status.${paper.status}`) }}
                     </UBadge>
                   </div>
                 </div>
@@ -934,19 +993,9 @@ async function saveRecordDraft() {
         <UPageCard title="专利">
           <UPageGrid cols="1 sm:2 md:3" gap="4" class="mt-4">
             <UPageCard
-              v-if="canEditRecords"
-              class="cursor-pointer"
-              icon="i-lucide-plus"
-              description="添加专利"
-              spotlight
-              @click="startRecord('patent')"
-            />
-            <UPageCard
               v-for="patent in patentsList"
               :key="patent.id"
-              :class="canEditOwnedRecord(patent.userId) ? 'cursor-pointer' : ''"
               :title="patent.name"
-              @click="startRecord('patent', patent)"
             >
               <template #description>
                 <div class="space-y-2">
@@ -982,7 +1031,7 @@ async function saveRecordDraft() {
                       :color="statusColor(patent.status)"
                       variant="outline"
                     >
-                      {{ t(`awards.status.${patent.status}`) }}
+                      {{ t(`status.${patent.status}`) }}
                     </UBadge>
                   </div>
                 </div>
@@ -999,21 +1048,9 @@ async function saveRecordDraft() {
         <UPageCard title="大创">
           <UPageGrid cols="1 sm:2 md:3" gap="4" class="mt-4">
             <UPageCard
-              v-if="canEditRecords"
-              class="cursor-pointer"
-              icon="i-lucide-plus"
-              description="添加大创"
-              spotlight
-              @click="startRecord('innovation')"
-            />
-            <UPageCard
               v-for="innovation in innovationsList"
               :key="innovation.id"
-              :class="
-                canEditOwnedRecord(innovation.userId) ? 'cursor-pointer' : ''
-              "
               :title="innovation.name"
-              @click="startRecord('innovation', innovation)"
             >
               <template #description>
                 <div class="space-y-2">
@@ -1055,7 +1092,7 @@ async function saveRecordDraft() {
                       :color="statusColor(innovation.status)"
                       variant="outline"
                     >
-                      {{ t(`awards.status.${innovation.status}`) }}
+                      {{ t(`status.${innovation.status}`) }}
                     </UBadge>
                   </div>
                 </div>
@@ -1110,9 +1147,82 @@ async function saveRecordDraft() {
             color="neutral"
             variant="ghost"
             label="取消"
-            @click="openEdit = false"
+            @click="() => { openEdit = false }"
           />
           <UButton :loading="saving" label="保存" @click="saveProfile" />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="openDisplay" title="展示设置">
+      <template #body>
+        <div class="space-y-6">
+          <UAlert
+            color="neutral"
+            variant="subtle"
+            title="只展示已审核通过的成就"
+            description="被勾选的内容会出现在公开资料卡片中，其他人可以通过搜索用户名访问。"
+          />
+
+          <section class="space-y-3">
+            <h3 class="text-sm font-medium">奖项</h3>
+            <UCheckbox
+              v-for="award in approvedAwards"
+              :key="award.id"
+              :model-value="displayForm.award.includes(award.id)"
+              :label="award.contest?.title || '未知比赛'"
+              @update:model-value="(checked) => toggleDisplay('award', award.id, Boolean(checked))"
+            />
+            <UEmpty v-if="!approvedAwards.length" variant="naked" title="暂无已通过奖项" />
+          </section>
+
+          <section class="space-y-3">
+            <h3 class="text-sm font-medium">论文</h3>
+            <UCheckbox
+              v-for="paper in approvedPapers"
+              :key="paper.id"
+              :model-value="displayForm.paper.includes(paper.id)"
+              :label="paper.name"
+              @update:model-value="(checked) => toggleDisplay('paper', paper.id, Boolean(checked))"
+            />
+            <UEmpty v-if="!approvedPapers.length" variant="naked" title="暂无已通过论文" />
+          </section>
+
+          <section class="space-y-3">
+            <h3 class="text-sm font-medium">专利</h3>
+            <UCheckbox
+              v-for="patent in approvedPatents"
+              :key="patent.id"
+              :model-value="displayForm.patent.includes(patent.id)"
+              :label="patent.name"
+              @update:model-value="(checked) => toggleDisplay('patent', patent.id, Boolean(checked))"
+            />
+            <UEmpty v-if="!approvedPatents.length" variant="naked" title="暂无已通过专利" />
+          </section>
+
+          <section class="space-y-3">
+            <h3 class="text-sm font-medium">大创</h3>
+            <UCheckbox
+              v-for="innovation in approvedInnovations"
+              :key="innovation.id"
+              :model-value="displayForm.innovation.includes(innovation.id)"
+              :label="innovation.name"
+              @update:model-value="(checked) => toggleDisplay('innovation', innovation.id, Boolean(checked))"
+            />
+            <UEmpty v-if="!approvedInnovations.length" variant="naked" title="暂无已通过大创" />
+          </section>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            label="取消"
+            @click="() => { openDisplay = false }"
+          />
+          <UButton :loading="savingDisplay" label="保存展示" @click="saveDisplay" />
         </div>
       </template>
     </UModal>
@@ -1181,7 +1291,7 @@ async function saveRecordDraft() {
             color="neutral"
             variant="ghost"
             label="取消"
-            @click="openAward = false"
+            @click="() => { openAward = false }"
           />
           <UButton
             v-if="!selectedAward"
@@ -1262,7 +1372,7 @@ async function saveRecordDraft() {
             color="neutral"
             variant="ghost"
             label="取消"
-            @click="openRecord = false"
+            @click="() => { openRecord = false }"
           />
           <UButton
             v-if="!selectedRecordId"
@@ -1280,3 +1390,4 @@ async function saveRecordDraft() {
     </UModal>
   </UContainer>
 </template>
+

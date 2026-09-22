@@ -16,24 +16,27 @@ const updateSchema = z.object({
   description: z.string().optional(),
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
+  maxAchievementsPerUser: z.coerce.number().int().positive().nullable().optional(),
   scoringConfig: scoringConfigSchema.optional(),
 });
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, "id"));
+  if (!Number.isInteger(id) || id <= 0) {
+    throw createError({ statusCode: 400, statusMessage: "活动 ID 非法" });
+  }
+
   const body = updateSchema.parse(await readBody(event));
 
   const [activity] = await db
     .update(schema.activities)
-    .set({
-      name: body.name,
-      description: body.description,
-      startDate: body.startDate,
-      endDate: body.endDate,
-      scoringConfig: body.scoringConfig,
-    })
+    .set(body)
     .where(eq(schema.activities.id, id))
     .returning();
+
+  if (!activity) {
+    throw createError({ statusCode: 404, statusMessage: "活动不存在" });
+  }
 
   return activity;
 });

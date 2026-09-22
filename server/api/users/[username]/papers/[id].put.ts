@@ -6,6 +6,7 @@ const updateSchema = z.object({
   name: z.string().trim().min(1).optional(),
   type: z.enum(paperTypeValues).optional(),
   date: z.coerce.date().optional(),
+  certificateDate: z.coerce.date().nullable().optional(),
   members: z.array(z.string().trim().min(1)).optional(),
   evidences: z.array(z.string().min(1)).optional(),
   status: z.enum(["draft", "pending"]).optional(),
@@ -29,6 +30,30 @@ export default defineEventHandler(async (event) => {
     columns: { id: true },
   });
   const body = updateSchema.parse(await readBody(event));
+  const current = await db.query.papers.findFirst({
+    where: and(eq(schema.papers.id, id), eq(schema.papers.userId, user!.id)),
+  });
+
+  if (!current) {
+    throw createError({ statusCode: 404, statusMessage: "论文记录不存在" });
+  }
+
+  if (current.status === "pending") {
+    if (body.status !== "draft" || Object.keys(body).length !== 1) {
+      throw createError({ statusCode: 400, statusMessage: "审核中的成就只能回退为草稿" });
+    }
+    const [paper] = await db
+      .update(schema.papers)
+      .set({ status: "draft" })
+      .where(and(eq(schema.papers.id, id), eq(schema.papers.userId, user!.id)))
+      .returning();
+    return paper;
+  }
+
+  if (current.status !== "draft") {
+    throw createError({ statusCode: 400, statusMessage: "已审核或已拒绝的成就不能修改" });
+  }
+
   const updateBody = {
     ...body,
     ...(body.members ? { members: normalizeMembers(body.members) } : {}),

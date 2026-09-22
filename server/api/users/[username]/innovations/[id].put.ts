@@ -10,6 +10,7 @@ const updateSchema = z.object({
   sourceType: z.enum(innovationAchievementTypeValues).optional(),
   sourceId: z.coerce.number().int().positive().optional(),
   date: z.coerce.date().optional(),
+  certificateDate: z.coerce.date().nullable().optional(),
   members: z.array(z.string().trim().min(1)).optional(),
   evidences: z.array(z.string().min(1)).optional(),
   status: z.enum(["draft", "pending"]).optional(),
@@ -38,11 +39,29 @@ export default defineEventHandler(async (event) => {
     columns: {
       sourceType: true,
       sourceId: true,
+      status: true,
+      evidences: true,
     },
   });
 
   if (!current) {
     throw createError({ statusCode: 404, statusMessage: "大创记录不存在" });
+  }
+
+  if (current.status === "pending") {
+    if (body.status !== "draft" || Object.keys(body).length !== 1) {
+      throw createError({ statusCode: 400, statusMessage: "审核中的成就只能回退为草稿" });
+    }
+    const [updated] = await db
+      .update(schema.innovations)
+      .set({ status: "draft" })
+      .where(and(eq(schema.innovations.id, id), eq(schema.innovations.userId, user!.id)))
+      .returning();
+    return updated;
+  }
+
+  if (current.status !== "draft") {
+    throw createError({ statusCode: 400, statusMessage: "已审核或已拒绝的成就不能修改" });
   }
 
   const nextSourceType =

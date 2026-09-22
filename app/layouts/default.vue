@@ -9,16 +9,13 @@ const navItems = computed(() => {
       to: "/notices",
     },
     {
-      label: "竞赛",
+      label: "收录竞赛",
       to: "/contests",
-    },
-    {
-      label: "申报",
-      to: "/activities",
     },
   ];
   if (user.value) {
-    links.push({ label: "个人资料", to: `/users/${user.value?.username}` });
+    links.push({ label: "奖项审核", to: "/reviews" });
+    links.push({ label: "积分申报", to: "/activities" });
   }
   if (user.value?.admin) {
     links.push({
@@ -31,7 +28,14 @@ const navItems = computed(() => {
 
 const userItems = computed(() => {
   if (loggedIn.value) {
-    return [{ label: "退出登录", onSelect: clear }];
+    return [
+      {
+        label: "个人资料",
+        to: `/users/${user.value?.username}`,
+        icon: "i-lucide-user-round",
+      },
+      { label: "退出登录", onSelect: clear, icon: "i-lucide-log-out" },
+    ];
   } else {
     return [
       {
@@ -50,6 +54,14 @@ const userItems = computed(() => {
     </template>
     <UNavigationMenu :items="navItems" />
     <template #right>
+      <UButton
+        v-if="loggedIn"
+        to="/notifications"
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-bell"
+        aria-label="站内信"
+      />
       <UDropdownMenu :items="userItems">
         <div>
           <UAvatar

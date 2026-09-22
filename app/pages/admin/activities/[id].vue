@@ -20,7 +20,15 @@ const {
 const refreshingAll = ref(false);
 const refreshingApplicationId = ref<number>();
 const deletingItemId = ref<number>();
+const updatingEffectiveApplicationId = ref<number>();
 const expanded = ref<Record<string, boolean>>({});
+
+const achievementTypeItems = [
+  { label: "奖项", value: "award" },
+  { label: "专利", value: "patent" },
+  { label: "论文", value: "paper" },
+  { label: "大创", value: "innovation" },
+];
 
 type ItemTableRow = {
   rowType: "item";
@@ -29,6 +37,7 @@ type ItemTableRow = {
   rank: string;
   user: { name: string; username: string };
   totalScore: string;
+  effectiveTotalScore: string;
   itemCount: string;
   children?: ItemTableRow[];
 };
@@ -39,6 +48,7 @@ type ApplicationTableRow = {
   rank: number;
   user: { name?: string; username?: string };
   totalScore: number;
+  effectiveTotalScore: number;
   itemCount: number;
   children: ItemTableRow[];
 };
@@ -76,6 +86,7 @@ const columns: TableColumn<TableRow>[] = [
   { accessorKey: "user.username", header: "学号 / 类型" },
   { accessorKey: "itemCount", header: "条目数量 / 日期" },
   { accessorKey: "totalScore", header: "总分" },
+  { accessorKey: "effectiveTotalScore", header: "有效总分" },
   { id: "actions", header: "操作" },
 ];
 
@@ -87,6 +98,9 @@ const loading = computed(
 function toItemRows(items: any[]) {
   return (items || []).map((item: any) => ({
     ...item,
+    categoryLabel: achievementTypeItems.find(
+      (typeItem) => typeItem.value === item.achievementType,
+    )?.label || "-",
     displayType: formatTypeLabel(item),
     achievementDate: formatDateTime(item.achievementDate),
     formula: `${item.baseScore} x ${item.multiplier} + ${item.extraScore} = ${item.finalScore}`,
@@ -102,13 +116,14 @@ const tableData = computed<TableRow[]>(() => {
         rowType: "item",
         id: item.id,
         parentApplicationId: application.id,
-        rank: "-",
+        rank: item.categoryLabel,
         user: {
           name: item.displayName,
           username: item.displayType,
         },
         itemCount: item.achievementDate || "-",
         totalScore: item.formula,
+        effectiveTotalScore: "-",
       }),
     );
 
@@ -118,6 +133,7 @@ const tableData = computed<TableRow[]>(() => {
       rank: application.rank,
       user: application.user,
       totalScore: application.totalScore,
+      effectiveTotalScore: application.effectiveTotalScore,
       itemCount: application.itemCount,
       children: itemRows,
     } satisfies ApplicationTableRow;
@@ -207,6 +223,28 @@ async function refreshSingleApplication(applicationId: number) {
   }
 }
 
+async function updateEffectiveTotalScore(applicationId: number, value: number) {
+  if (updatingEffectiveApplicationId.value || !Number.isFinite(value)) return;
+
+  try {
+    updatingEffectiveApplicationId.value = applicationId;
+    await $fetch(`/api/admin/applications/${applicationId}`, {
+      method: "PUT",
+      body: { effectiveTotalScore: value },
+    });
+    await refresh();
+    toast.add({ title: "有效总分已更新", color: "success" });
+  } catch (e: any) {
+    toast.add({
+      title: "保存失败",
+      description: e?.data?.message || e?.message,
+      color: "error",
+    });
+  } finally {
+    updatingEffectiveApplicationId.value = undefined;
+  }
+}
+
 async function deleteItem(parentApplicationId: number, itemId: number) {
   if (deletingItemId.value) return;
 
@@ -230,74 +268,93 @@ async function deleteItem(parentApplicationId: number, itemId: number) {
 </script>
 
 <template>
-  <UDashboardNavbar :title="`申报 - ${activity?.name || ''}`">
-    <template #leading>
-      <UButton
-        to="/admin/activities"
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-arrow-left"
+  <UDashboardPanel>
+    <template #header>
+      <UDashboardNavbar :title="`申报 - ${activity?.name || ''}`">
+        <template #leading>
+          <UButton
+            to="/admin/activities"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-arrow-left"
+          >
+            返回
+          </UButton>
+        </template>
+        <template #right>
+          <UButton
+            icon="i-lucide-refresh-ccw"
+            :loading="refreshingAll"
+            @click="refreshAllScores"
+          >
+            重算积分
+          </UButton>
+        </template>
+      </UDashboardNavbar>
+    </template>
+
+    <template #body>
+      <UTable
+        v-model:expanded="expanded"
+        :data="tableData"
+        :columns="columns"
+        :loading="loading"
+        :get-row-id="(row: TableRow) => `${row.rowType}-${row.id}`"
+        :get-sub-rows="(row: TableRow) => row.children"
+        :ui="{
+          base: 'border-separate border-spacing-0',
+          tbody: '[&>tr]:last:[&>td]:border-b-0',
+          tr: 'group',
+          td: 'empty:p-0 group-has-[td:not(:empty)]:border-b border-default',
+        }"
       >
-        返回
-      </UButton>
-    </template>
-    <template #right>
-      <UButton
-        icon="i-lucide-refresh-ccw"
-        :loading="refreshingAll"
-        @click="refreshAllScores"
-      >
-        重算积分
-      </UButton>
-    </template>
-  </UDashboardNavbar>
+        <template #rank-cell="{ row }">
+          <span v-if="row.original.rowType === 'application'">
+            {{ row.original.rank }}
+          </span>
+          <span v-else>-</span>
+        </template>
 
-  <UTable
-    v-model:expanded="expanded"
-    :data="tableData"
-    :columns="columns"
-    :loading="loading"
-    :get-row-id="(row: TableRow) => `${row.rowType}-${row.id}`"
-    :get-sub-rows="(row: TableRow) => row.children"
-    :ui="{
-      base: 'border-separate border-spacing-0',
-      tbody: '[&>tr]:last:[&>td]:border-b-0',
-      tr: 'group',
-      td: 'empty:p-0 group-has-[td:not(:empty)]:border-b border-default',
-    }"
-  >
-    <template #rank-cell="{ row }">
-      <span v-if="row.original.rowType === 'application'">
-        {{ row.original.rank }}
-      </span>
-      <span v-else>-</span>
-    </template>
+        <template #itemCount-cell="{ row }">
+          <span class="truncate" :title="String(row.original.itemCount)">
+            {{ row.original.itemCount }}
+          </span>
+        </template>
 
-    <template #itemCount-cell="{ row }">
-      <span class="truncate" :title="String(row.original.itemCount)">
-        {{ row.original.itemCount }}
-      </span>
-    </template>
+        <template #effectiveTotalScore-cell="{ row }">
+          <UInput
+            v-if="row.original.rowType === 'application'"
+            :model-value="row.original.effectiveTotalScore"
+            type="number"
+            size="sm"
+            class="w-28"
+            :loading="updatingEffectiveApplicationId === row.original.id"
+            @change="updateEffectiveTotalScore(row.original.id, Number(($event.target as HTMLInputElement).value))"
+          />
+          <span v-else>-</span>
+        </template>
 
-    <template #actions-cell="{ row }">
-      <UButton
-        v-if="row.original.rowType === 'application'"
-        icon="i-lucide-refresh-ccw"
-        size="sm"
-        color="neutral"
-        variant="ghost"
-        :loading="refreshingApplicationId === row.original.id"
-        @click="refreshSingleApplication(row.original.id)"
-      />
-      <UButton
-        v-if="row.original.rowType === 'item'"
-        icon="i-lucide-trash-2"
-        size="xs"
-        color="error"
-        variant="ghost"
-        :loading="deletingItemId === row.original.id"
-        @click="deleteItem(row.original.parentApplicationId, row.original.id)"
-      />
+        <template #actions-cell="{ row }">
+          <UButton
+            v-if="row.original.rowType === 'application'"
+            icon="i-lucide-refresh-ccw"
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            :loading="refreshingApplicationId === row.original.id"
+            @click="refreshSingleApplication(row.original.id)"
+          />
+          <UButton
+            v-if="row.original.rowType === 'item'"
+            icon="i-lucide-trash-2"
+            size="xs"
+            color="error"
+            variant="ghost"
+            :loading="deletingItemId === row.original.id"
+            @click="deleteItem(row.original.parentApplicationId, row.original.id)"
+          />
+        </template>
+      </UTable>
     </template>
-  </UTable>
+  </UDashboardPanel>
 </template>

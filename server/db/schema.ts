@@ -73,6 +73,11 @@ export type ScoringValue = string | number | boolean | number[];
 export type ScoringConfig = Record<string, ScoringValue>;
 
 export const defaultScoringConfig: ScoringConfig = {
+  "cap.award": 999,
+  "cap.paper": 999,
+  "cap.patent": 20,
+  "cap.innovation": 999,
+
   // 国家级
   "award.national.first_place": 20,
   "award.national.second_place": 18,
@@ -159,6 +164,10 @@ export const users = pgTable("users", {
   email: text("email"),
   gender: text("gender", { enum: ["male", "female"] }),
   college: text("college"),
+  displayAchievements: jsonb("display_achievements")
+    .$type<Record<string, number[]>>()
+    .notNull()
+    .default({}),
   admin: boolean("admin").notNull().default(false),
 });
 
@@ -173,6 +182,35 @@ export const notices = pgTable("notices", {
     .defaultNow()
     .$onUpdate(() => new Date()),
 });
+
+export const userNotifications = pgTable(
+  "user_notifications",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    category: text("category"),
+    resourceType: achievementTypeEnum("resource_type"),
+    resourceId: integer("resource_id"),
+    reviewStatus: reviewStatusEnum("review_status"),
+    reason: text("reason"),
+    readAt: timestamp("read_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("user_notifications_user_id_idx").on(table.userId),
+    resourceIdx: index("user_notifications_resource_idx").on(
+      table.resourceType,
+      table.resourceId,
+    ),
+  }),
+);
 
 export const contests = pgTable("contests", {
   id: serial("id").primaryKey(),
@@ -205,6 +243,7 @@ export const awards = pgTable("awards", {
   evidences: text("evidences").array().notNull().default([]),
   status: reviewStatusEnum("status").notNull().default("draft"),
   date: timestamp("date", { mode: "date" }).notNull().defaultNow(),
+  certificateDate: timestamp("certificate_date", { mode: "date" }),
   updatedAt: timestamp("updated_at", { mode: "date" })
     .notNull()
     .defaultNow()
@@ -225,6 +264,7 @@ export const papers = pgTable("papers", {
   evidences: text("evidences").array().notNull().default([]),
   status: reviewStatusEnum("status").notNull().default("draft"),
   date: timestamp("date", { mode: "date" }).notNull(),
+  certificateDate: timestamp("certificate_date", { mode: "date" }),
   updatedAt: timestamp("updated_at", { mode: "date" })
     .notNull()
     .defaultNow()
@@ -245,6 +285,7 @@ export const patents = pgTable("patents", {
   evidences: text("evidences").array().notNull().default([]),
   status: reviewStatusEnum("status").notNull().default("draft"),
   date: timestamp("date", { mode: "date" }).notNull(),
+  certificateDate: timestamp("certificate_date", { mode: "date" }),
   updatedAt: timestamp("updated_at", { mode: "date" })
     .notNull()
     .defaultNow()
@@ -267,6 +308,7 @@ export const innovations = pgTable("innovations", {
   evidences: text("evidences").array().notNull().default([]),
   status: reviewStatusEnum("status").notNull().default("draft"),
   date: timestamp("date", { mode: "date" }).notNull(),
+  certificateDate: timestamp("certificate_date", { mode: "date" }),
   updatedAt: timestamp("updated_at", { mode: "date" })
     .notNull()
     .defaultNow()
@@ -279,6 +321,7 @@ export const activities = pgTable("activities", {
   description: text("description"),
   startDate: timestamp("start_date", { mode: "date" }).notNull(),
   endDate: timestamp("end_date", { mode: "date" }).notNull(),
+  maxAchievementsPerUser: integer("max_achievements_per_user"),
   scoringConfig: jsonb("scoring_config")
     .$type<ScoringConfig>()
     .notNull()
@@ -300,6 +343,12 @@ export const applications = pgTable("applications", {
       onUpdate: "cascade",
     }),
   totalScore: integer("total_score").notNull().default(0),
+    effectiveTotalScore: integer("effective_total_score").notNull().default(0),
+    effectiveScoreManual: boolean("effective_score_manual").notNull().default(false),
+    scoreSummary: jsonb("score_summary")
+      .$type<Record<string, { totalScore: number; effectiveTotalScore: number }>>()
+      .notNull()
+      .default({}),
   status: reviewStatusEnum("status").notNull().default("draft"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" })
@@ -403,6 +452,20 @@ export const applicationItemsRelations = relations(
     application: one(applications, {
       fields: [applicationItems.applicationId],
       references: [applications.id],
+    }),
+  }),
+);
+
+export const usersRelations = relations(users, ({ many }) => ({
+  notifications: many(userNotifications),
+}));
+
+export const userNotificationsRelations = relations(
+  userNotifications,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userNotifications.userId],
+      references: [users.id],
     }),
   }),
 );

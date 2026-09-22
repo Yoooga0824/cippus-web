@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "@nuxthub/db";
 import { z } from "zod";
-import { sendAchievementReviewEmail } from "~~/server/utils/review-email";
+import { removeAchievementFromApplications } from "~~/server/utils/application-scoring";
+import { createAchievementReviewNotification } from "~~/server/utils/notifications";
 
 const updateSchema = z.object({
   name: z.string().trim().min(1).optional(),
@@ -10,6 +11,7 @@ const updateSchema = z.object({
   date: z.coerce.date().optional(),
   members: z.array(z.string().trim().min(1)).optional(),
   evidences: z.array(z.string().min(1)).optional(),
+  reviewReason: z.string().trim().optional(),
 });
 
 export default defineEventHandler(async (event) => {
@@ -20,8 +22,8 @@ export default defineEventHandler(async (event) => {
     with: {
       user: {
         columns: {
+          id: true,
           username: true,
-          email: true,
         },
       },
     },
@@ -31,9 +33,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: "专利记录不存在" });
   }
 
+  if (body.status === "rejected" && !body.reviewReason) {
+    throw createError({ statusCode: 400, statusMessage: "拒绝审核时必须填写理由" });
+  }
+
+  const { reviewReason, ...updateBody } = body;
+
   const [updated] = await db
     .update(schema.patents)
-    .set(body)
+    .set(updateBody)
     .where(eq(schema.patents.id, id))
     .returning();
 
@@ -41,17 +49,23 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: "专利记录不存在" });
   }
 
+  if (body.status === "rejected" && current.status === "approved") {
+    await removeAchievementFromApplications("patent", id);
+  }
+
   if (
     body.status &&
     body.status !== current.status &&
     (body.status === "approved" || body.status === "rejected")
   ) {
-    await sendAchievementReviewEmail({
-      email: current.user.email,
-      username: current.user.username,
+    await createAchievementReviewNotification({
+      userId: current.user.id,
+      resourceType: "patent",
+      resourceId: current.id,
       recordTypeLabel: "专利",
       recordName: updated.name,
       status: body.status,
+      reason: reviewReason,
     });
   }
 
