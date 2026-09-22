@@ -98,6 +98,8 @@ const columns = [
 const openModal = ref(false);
 const currentPatent = ref<any>({});
 const membersTags = ref<string[]>([]);
+const reviewingCertificate = ref(false);
+const certificateRejectReason = ref("");
 
 function openModalEditor(item?: any) {
   if (item) {
@@ -109,6 +111,9 @@ function openModalEditor(item?: any) {
       members: item.members || [],
       status: item.status,
       evidences: item.evidences || [],
+      certificateStatus: item.certificateStatus || "none",
+      certificateDate: formatDateText(item.certificateDate),
+      certificateEvidences: item.certificateEvidences || [],
       reviewReason: "",
     };
     membersTags.value = normalizeMembersList(item.members as string[]);
@@ -142,6 +147,34 @@ async function editPatent() {
 
   closeModal();
   await refresh();
+}
+
+// 审核用户补充的证书材料（只影响 certificateStatus，不影响成果状态）
+async function reviewCertificate(status: "approved" | "rejected") {
+  if (!currentPatent.value?.id || reviewingCertificate.value) {
+    return;
+  }
+
+  if (status === "rejected" && !certificateRejectReason.value.trim()) {
+    alert("拒绝补充证书时必须填写理由");
+    return;
+  }
+
+  try {
+    reviewingCertificate.value = true;
+    await $fetch(`/api/admin/patents/${currentPatent.value.id}/certificate`, {
+      method: "put",
+      body: {
+        status,
+        reason: certificateRejectReason.value,
+      },
+    });
+    certificateRejectReason.value = "";
+    closeModal();
+    await refresh();
+  } finally {
+    reviewingCertificate.value = false;
+  }
 }
 </script>
 
@@ -248,10 +281,50 @@ async function editPatent() {
         <UFormField label="附件" name="evidences">
           <EvidencePreview :evidences="currentPatent.evidences || []" />
         </UFormField>
+
+        <template v-if="currentPatent.certificateStatus === 'pending'">
+          <UFormField label="待审证书日期" name="certificateDate">
+            <UInput
+              :model-value="currentPatent.certificateDate"
+              class="w-full"
+              type="date"
+              disabled
+            />
+          </UFormField>
+          <UFormField label="待审证书佐证" name="certificateEvidences">
+            <EvidencePreview :evidences="currentPatent.certificateEvidences || []" />
+          </UFormField>
+          <UFormField label="拒绝理由" name="certificateRejectReason">
+            <UTextarea
+              v-model="certificateRejectReason"
+              class="w-full"
+              placeholder="拒绝补充证书时必填"
+            />
+          </UFormField>
+        </template>
       </UForm>
     </template>
     <template #footer>
-      <UButton @click="editPatent">保存</UButton>
+      <div class="flex w-full justify-end gap-2">
+        <template v-if="currentPatent.certificateStatus === 'pending'">
+          <UButton
+            color="error"
+            variant="outline"
+            :loading="reviewingCertificate"
+            @click="reviewCertificate('rejected')"
+          >
+            拒绝证书
+          </UButton>
+          <UButton
+            color="success"
+            :loading="reviewingCertificate"
+            @click="reviewCertificate('approved')"
+          >
+            通过证书
+          </UButton>
+        </template>
+        <UButton @click="editPatent">保存</UButton>
+      </div>
     </template>
   </UModal>
 </template>

@@ -49,6 +49,14 @@ const memberTags = ref<string[]>([]);
 const viewOnly = ref(false);
 const deleteTarget = ref<TableRecord>();
 const confirmDeleteOpen = ref(false);
+const certificateModalOpen = ref(false);
+const certificateTarget = ref<TableRecord>();
+const certificateUploadFiles = ref<File[]>([]);
+const savingCertificate = ref(false);
+const certificateForm = reactive({
+  date: "",
+  evidences: [] as string[],
+});
 const form = reactive({
   contestId: undefined as number | undefined,
   level: undefined as AwardLevel | undefined,
@@ -556,6 +564,73 @@ async function confirmDeleteRecord() {
   }
 }
 
+function certificateStatusOf(item: TableRecord) {
+  return ((item as any).certificateStatus || "none") as
+    | "none"
+    | "pending"
+    | "approved"
+    | "rejected";
+}
+
+// 已通过审核、且尚未补充过（或被拒后允许重来）的成果，才可以补充证书。
+function canSupplementCertificate(item: TableRecord) {
+  if (item.status !== "approved") {
+    return false;
+  }
+  const status = certificateStatusOf(item);
+  return status === "none" || status === "rejected";
+}
+
+function openCertificateModal(item: TableRecord) {
+  certificateTarget.value = item;
+  certificateForm.date = normalizeDateText((item as any).certificateDate);
+  certificateForm.evidences = [...((item as any).certificateEvidences || [])];
+  certificateUploadFiles.value = [];
+  certificateModalOpen.value = true;
+}
+
+function removeCertificateEvidence(index: number) {
+  certificateForm.evidences.splice(index, 1);
+}
+
+async function saveCertificate() {
+  const item = certificateTarget.value;
+  if (!item || savingCertificate.value) return;
+
+  if (!certificateForm.date) {
+    toast.add({ title: "请选择证书日期", color: "warning" });
+    return;
+  }
+
+  try {
+    savingCertificate.value = true;
+    const uploaded = await uploadEvidences(certificateUploadFiles.value);
+    await $fetch(
+      `/api/users/${username.value}/${pathForRecordKind(item.achievementKind)}/${item.id}/certificate`,
+      {
+        method: "post",
+        body: {
+          certificateDate: certificateForm.date,
+          certificateEvidences: [...certificateForm.evidences, ...uploaded],
+        },
+      },
+    );
+    toast.add({ title: "证书材料已提交，等待审核", color: "success" });
+    certificateModalOpen.value = false;
+    certificateTarget.value = undefined;
+    await refreshListByKind(item.achievementKind);
+  } catch (e: any) {
+    toast.add({
+      title: "提交失败",
+      description: e?.data?.message || e?.message,
+      color: "error",
+      icon: "i-lucide-circle-alert",
+    });
+  } finally {
+    savingCertificate.value = false;
+  }
+}
+
 function pathForRecordKind(kind: AchievementKind) {
   switch (kind) {
     case "award":
@@ -641,6 +716,27 @@ function pathForRecordKind(kind: AchievementKind) {
                 :loading="revertingId === row.original.id"
                 @click="revertToDraft(row.original)"
               />
+              <UButton
+                v-if="canSupplementCertificate(row.original)"
+                size="sm"
+                variant="ghost"
+                color="primary"
+                icon="i-lucide-file-plus"
+                :label="
+                  certificateStatusOf(row.original) === 'rejected'
+                    ? '重新补充证书'
+                    : '补充证书'
+                "
+                @click="openCertificateModal(row.original)"
+              />
+              <UBadge
+                v-if="certificateStatusOf(row.original) === 'pending'"
+                color="warning"
+                variant="outline"
+                size="sm"
+              >
+                证书待审
+              </UBadge>
               <span v-if="!isRecordOwner(row.original)" class="text-sm text-muted">
                 成员无法修改成果
               </span>
@@ -790,6 +886,38 @@ function pathForRecordKind(kind: AchievementKind) {
               label="确认删除"
               :loading="Boolean(deletingId)"
               @click="confirmDeleteRecord"
+            />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal v-model:open="certificateModalOpen" title="补充证书">
+        <template #body>
+          <UForm class="space-y-4" @submit.prevent="saveCertificate">
+            <UFormField label="证书日期" name="certificateDate" required>
+              <UInput v-model="certificateForm.date" class="w-full" type="date" />
+            </UFormField>
+            <UFormField label="证书佐证" name="certificateEvidences">
+              <EvidenceUpload
+                v-model="certificateUploadFiles"
+                :evidences="certificateForm.evidences"
+                @remove-evidence="removeCertificateEvidence"
+              />
+            </UFormField>
+          </UForm>
+        </template>
+        <template #footer>
+          <div class="flex w-full justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              label="取消"
+              @click="certificateModalOpen = false"
+            />
+            <UButton
+              :loading="savingCertificate"
+              label="提交审核"
+              @click="saveCertificate"
             />
           </div>
         </template>
