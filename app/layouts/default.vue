@@ -88,15 +88,12 @@ watch(
           icon="i-lucide-bell"
           aria-label="站内信"
         />
-        <UBadge
+        <span
           v-if="unreadCount > 0"
-          color="error"
-          variant="solid"
-          size="sm"
-          class="pointer-events-none absolute -top-1 -right-1 px-1 text-[10px] leading-4 tabular-nums"
+          class="pointer-events-none absolute -top-0.5 -right-0.5 flex h-3 min-w-3 items-center justify-center rounded-full bg-error px-0.5 text-[8px] font-medium leading-none text-inverted tabular-nums"
         >
           {{ unreadCount > 99 ? "99+" : unreadCount }}
-        </UBadge>
+        </span>
       </div>
       <UDropdownMenu :items="userItems">
         <div>
