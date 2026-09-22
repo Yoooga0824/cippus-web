@@ -12,6 +12,7 @@ const statusFilterItems = computed(() => [
     label: t(`status.${value}`),
     value,
   })),
+  { label: "证书待审", value: "certificate_pending" },
 ]);
 
 const { data: patents, refresh } = await useFetch<any>("/api/admin/patents", {

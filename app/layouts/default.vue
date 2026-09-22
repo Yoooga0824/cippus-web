@@ -45,6 +45,32 @@ const userItems = computed(() => {
     ];
   }
 });
+
+// 未读站内信数量：登录后才请求（接口需要会话）
+const route = useRoute();
+const { data: notificationData, refresh: refreshNotifications } = await useFetch<{
+  notifications: unknown[];
+  unreadCount: number;
+}>("/api/notifications", {
+  immediate: false,
+  default: () => ({ notifications: [], unreadCount: 0 }),
+});
+
+if (loggedIn.value) {
+  await refreshNotifications();
+}
+
+const unreadCount = computed(() => notificationData.value?.unreadCount || 0);
+
+// 路由切换时刷新（在站内信页标记已读后返回，红点会同步更新）
+watch(
+  () => route.fullPath,
+  () => {
+    if (loggedIn.value) {
+      refreshNotifications();
+    }
+  },
+);
 </script>
 
 <template>
@@ -54,14 +80,24 @@ const userItems = computed(() => {
     </template>
     <UNavigationMenu :items="navItems" />
     <template #right>
-      <UButton
-        v-if="loggedIn"
-        to="/notifications"
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-bell"
-        aria-label="站内信"
-      />
+      <div v-if="loggedIn" class="relative">
+        <UButton
+          to="/notifications"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-bell"
+          aria-label="站内信"
+        />
+        <UBadge
+          v-if="unreadCount > 0"
+          color="error"
+          variant="solid"
+          size="sm"
+          class="pointer-events-none absolute -top-1 -right-1 px-1 text-[10px] leading-4 tabular-nums"
+        >
+          {{ unreadCount > 99 ? "99+" : unreadCount }}
+        </UBadge>
+      </div>
       <UDropdownMenu :items="userItems">
         <div>
           <UAvatar
