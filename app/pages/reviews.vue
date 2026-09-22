@@ -661,70 +661,72 @@ watch(formKind, () => resetForm());
             <UFormField v-if="!selectedRecord" label="成果类型" name="achievementType" required>
               <USelect v-model="formKind" :items="kindItems" class="w-full" />
             </UFormField>
-            <template v-if="formKind === 'award'">
-              <UFormField label="比赛" name="contestId" required>
+            <fieldset :disabled="viewOnly" class="m-0 min-w-0 space-y-4 border-0 p-0">
+              <template v-if="formKind === 'award'">
+                <UFormField label="比赛" name="contestId" required>
+                  <USelect
+                    v-model="form.contestId"
+                    :items="contestItems"
+                    class="w-full"
+                    :disabled="viewOnly"
+                  />
+                </UFormField>
+                <UFormField label="级别" name="level" required>
+                  <USelect
+                    v-model="form.level"
+                    :items="awardLevelItems"
+                    class="w-full"
+                    :disabled="viewOnly"
+                  />
+                </UFormField>
+              </template>
+              <template v-if="formKind !== 'award'">
+                <UFormField label="名称" name="name" required>
+                  <UInput v-model="form.name" class="w-full" :disabled="viewOnly" />
+                </UFormField>
+              </template>
+              <UFormField label="类型" name="type" required>
                 <USelect
-                  v-model="form.contestId"
-                  :items="contestItems"
+                  v-model="form.type"
+                  :items="currentTypeItems"
                   class="w-full"
                   :disabled="viewOnly"
                 />
               </UFormField>
-              <UFormField label="级别" name="level" required>
-                <USelect
-                  v-model="form.level"
-                  :items="awardLevelItems"
+              <template v-if="formKind === 'innovation'">
+                <UFormField label="成果类型" name="sourceType" required>
+                  <USelect
+                    v-model="form.sourceType"
+                    :items="sourceTypeItems"
+                    class="w-full"
+                    :disabled="viewOnly"
+                    @update:model-value="form.sourceId = undefined"
+                  />
+                </UFormField>
+                <UFormField label="具体成果" name="sourceId" required>
+                  <USelect
+                    v-model="form.sourceId"
+                    :items="sourceItems"
+                    class="w-full"
+                    :disabled="viewOnly"
+                  />
+                </UFormField>
+              </template>
+              <UFormField label="获奖时间" name="date" required>
+                <UInput v-model="form.date" class="w-full" type="date" :disabled="viewOnly" />
+              </UFormField>
+              <UFormField label="证书时间（可选，若填则需同时上传证书，若暂无可日后补充提交）" name="certificateDate">
+                <UInput
+                  v-model="form.certificateDate"
                   class="w-full"
+                  type="date"
                   :disabled="viewOnly"
                 />
               </UFormField>
-            </template>
-            <template v-if="formKind !== 'award'">
-              <UFormField label="名称" name="name" required>
-                <UInput v-model="form.name" class="w-full" :disabled="viewOnly" />
+              <UFormField label="成员排序（输入学号后点击回车保存）" name="members">
+                <UInputTags v-model="memberTags" class="w-full" :disabled="viewOnly" />
               </UFormField>
-            </template>
-            <UFormField label="类型" name="type" required>
-              <USelect
-                v-model="form.type"
-                :items="currentTypeItems"
-                class="w-full"
-                :disabled="viewOnly"
-              />
-            </UFormField>
-            <template v-if="formKind === 'innovation'">
-              <UFormField label="成果类型" name="sourceType" required>
-                <USelect
-                  v-model="form.sourceType"
-                  :items="sourceTypeItems"
-                  class="w-full"
-                  :disabled="viewOnly"
-                  @update:model-value="form.sourceId = undefined"
-                />
-              </UFormField>
-              <UFormField label="具体成果" name="sourceId" required>
-                <USelect
-                  v-model="form.sourceId"
-                  :items="sourceItems"
-                  class="w-full"
-                  :disabled="viewOnly"
-                />
-              </UFormField>
-            </template>
-            <UFormField label="获奖时间" name="date" required>
-              <UInput v-model="form.date" class="w-full" type="date" :disabled="viewOnly" />
-            </UFormField>
-            <UFormField label="证书时间（可选，若填则需同时上传证书，若暂无可日后补充提交）" name="certificateDate">
-              <UInput
-                v-model="form.certificateDate"
-                class="w-full"
-                type="date"
-                :disabled="viewOnly"
-              />
-            </UFormField>
-            <UFormField label="成员排序（输入学号后点击回车保存）" name="members">
-              <UInputTags v-model="memberTags" class="w-full" :disabled="viewOnly" />
-            </UFormField>
+            </fieldset>
             <UFormField label="佐证材料" name="evidences">
               <EvidencePreview v-if="viewOnly" :evidences="form.evidences" />
               <EvidenceUpload
