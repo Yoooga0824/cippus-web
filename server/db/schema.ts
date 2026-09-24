@@ -174,6 +174,7 @@ export const users = pgTable("users", {
   email: text("email"),
   gender: text("gender", { enum: ["male", "female"] }),
   college: text("college"),
+  avatar: text("avatar"),
   displayAchievements: jsonb("display_achievements")
     .$type<Record<string, number[]>>()
     .notNull()

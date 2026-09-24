@@ -12,6 +12,7 @@ const updateProfileSchema = z.object({
   email: z.string().optional(),
   gender: z.enum(["male", "female"]).nullable().optional(),
   college: z.string().optional(),
+  avatar: z.string().optional().nullable(),
   password: z.string().optional(),
   displayAchievements: displayAchievementsSchema,
 });
@@ -33,6 +34,20 @@ function toNullableText(value: unknown) {
 
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
+}
+
+// 头像只能指向本人通过 /api/blob/upload 上传的文件，避免把别人的附件或任意字符串当作头像
+function normalizeAvatarPath(value: unknown, username: string) {
+  const normalized = toNullableText(value);
+
+  if (
+    normalized &&
+    (!normalized.startsWith(`avatar/${username}/`) || normalized.includes(".."))
+  ) {
+    throw createError({ statusCode: 400, statusMessage: "头像地址非法" });
+  }
+
+  return normalized;
 }
 
 // 展示设置只允许保存“本人可见且已通过审核”的成果 id，
@@ -92,6 +107,7 @@ export default defineEventHandler(async (event) => {
     ...("email" in body ? { email: toNullableText(body.email) } : {}),
     ...("gender" in body ? { gender: body.gender } : {}),
     ...("college" in body ? { college: toNullableText(body.college) } : {}),
+    ...("avatar" in body ? { avatar: normalizeAvatarPath(body.avatar, username) } : {}),
     ...(nextPassword ? { password: await hashPassword(nextPassword) } : {}),
     ...(displayAchievements ? { displayAchievements } : {}),
   };
@@ -111,6 +127,7 @@ export default defineEventHandler(async (event) => {
       email: true,
       gender: true,
       college: true,
+      avatar: true,
       displayAchievements: true,
       admin: true,
     },
@@ -137,6 +154,7 @@ export default defineEventHandler(async (event) => {
     email: updatedUser.email,
     gender: updatedUser.gender,
     college: updatedUser.college,
+    avatar: updatedUser.avatar,
     displayAchievements: updatedUser.displayAchievements,
   };
 });

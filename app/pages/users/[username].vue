@@ -593,6 +593,76 @@ async function saveDisplay() {
   }
 }
 
+const AVATAR_MAX_SIZE = 4 * 1024 * 1024;
+const avatarInput = ref<HTMLInputElement>();
+const uploadingAvatar = ref(false);
+
+const avatarUrl = computed(() =>
+  user.value?.avatar ? `/images/${user.value.avatar}` : undefined,
+);
+
+function pickAvatar() {
+  if (!isSelf.value || uploadingAvatar.value) {
+    return;
+  }
+
+  avatarInput.value?.click();
+}
+
+async function onAvatarSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+
+  if (!file || !isSelf.value || uploadingAvatar.value) {
+    return;
+  }
+
+  if (!file.type.startsWith("image/")) {
+    toast.add({ title: "请选择图片文件", color: "warning" });
+    return;
+  }
+
+  if (file.size > AVATAR_MAX_SIZE) {
+    toast.add({ title: "头像不能超过 4MB", color: "warning" });
+    return;
+  }
+
+  try {
+    uploadingAvatar.value = true;
+    const formData = new FormData();
+    formData.append("username", username.value);
+    formData.append("purpose", "avatar");
+    formData.append("file", file);
+
+    const uploaded = await $fetch<{ pathname: string }>("/api/blob/upload", {
+      method: "post",
+      body: formData,
+    });
+
+    await $fetch("/api/users", {
+      method: "PUT",
+      body: { avatar: uploaded.pathname },
+    });
+
+    await refreshUser();
+    toast.add({
+      title: "头像已更新",
+      color: "success",
+      icon: "i-lucide-check",
+    });
+  } catch (e: any) {
+    toast.add({
+      title: "头像更新失败",
+      description: e?.data?.message || e?.message,
+      color: "error",
+      icon: "i-lucide-circle-alert",
+    });
+  } finally {
+    uploadingAvatar.value = false;
+  }
+}
+
 async function saveAward(status: UserSubmitStatus) {
   if (savingAward.value) {
     return;
@@ -892,9 +962,31 @@ async function saveRecordDraft() {
   <UContainer v-if="user">
     <UPageHeader headline="用户" :description="user.college || ''">
       <template #title>
-        <div class="flex items-center gap-2">
-          <span>{{ user.name || user.username }}</span>
-          <UIcon :name="genderIcon.name" :class="genderIcon.class" />
+        <div class="flex items-center gap-3">
+          <div class="relative flex shrink-0">
+            <UAvatar
+              :src="avatarUrl"
+              :alt="user.name || user.username"
+              size="3xl"
+            />
+            <button
+              v-if="isSelf"
+              type="button"
+              class="absolute inset-0 flex cursor-pointer items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 disabled:cursor-wait"
+              :aria-label="uploadingAvatar ? '头像上传中' : '上传头像'"
+              :disabled="uploadingAvatar"
+              @click="pickAvatar"
+            >
+              <UIcon
+                :name="uploadingAvatar ? 'i-lucide-loader-circle' : 'i-lucide-camera'"
+                :class="['size-5', uploadingAvatar ? 'animate-spin' : '']"
+              />
+            </button>
+          </div>
+          <div class="flex items-center gap-2">
+            <span>{{ user.name || user.username }}</span>
+            <UIcon :name="genderIcon.name" :class="genderIcon.class" />
+          </div>
         </div>
       </template>
 
@@ -915,6 +1007,14 @@ async function saveRecordDraft() {
         />
       </template>
     </UPageHeader>
+
+    <input
+      ref="avatarInput"
+      type="file"
+      accept="image/*"
+      class="hidden"
+      @change="onAvatarSelected"
+    />
 
     <UPage>
       <UPageBody>
