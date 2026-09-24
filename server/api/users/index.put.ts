@@ -97,12 +97,35 @@ export default defineEventHandler(async (event) => {
 
   const body = updateProfileSchema.parse(await readBody(event));
   const nextPassword = typeof body.password === "string" ? body.password.trim() : "";
+  const currentUser = await db.query.users.findFirst({
+    where: eq(schema.users.username, username),
+    columns: { name: true, authProvider: true },
+  });
+
+  if (!currentUser) {
+    throw createError({ statusCode: 404, statusMessage: "User not found" });
+  }
+
+  const nameLocked = currentUser.authProvider === "cas";
+
+  // 统一认证用户的姓名由学校统一身份认证提供，不能自行改写
+  if (
+    nameLocked &&
+    "name" in body &&
+    toNullableText(body.name) !== currentUser.name
+  ) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: "统一认证用户的姓名由学校提供，不能修改",
+    });
+  }
+
   const displayAchievements = await normalizeDisplayAchievements(
     body.displayAchievements,
     username,
   );
   const updateBody = {
-    ...("name" in body ? { name: toNullableText(body.name) } : {}),
+    ...("name" in body && !nameLocked ? { name: toNullableText(body.name) } : {}),
     ...("bio" in body ? { bio: toNullableText(body.bio) } : {}),
     ...("email" in body ? { email: toNullableText(body.email) } : {}),
     ...("gender" in body ? { gender: body.gender } : {}),

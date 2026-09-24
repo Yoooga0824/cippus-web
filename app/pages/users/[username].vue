@@ -528,7 +528,7 @@ async function saveProfile() {
     await $fetch(`/api/users`, {
       method: "PUT",
       body: {
-        name: form.name,
+        ...(nameLocked.value ? {} : { name: form.name }),
         bio: form.bio,
         email: form.email,
         gender: form.gender,
@@ -601,6 +601,9 @@ const uploadingAvatar = ref(false);
 const avatarUrl = computed(() =>
   user.value?.avatar ? `/images/${user.value.avatar}` : undefined,
 );
+
+// 统一认证账号的姓名由学校提供，用户端只读
+const nameLocked = computed(() => user.value?.authProvider === "cas");
 
 function pickAvatar() {
   if (!isSelf.value || uploadingAvatar.value) {
@@ -1262,8 +1265,12 @@ async function saveRecordDraft() {
     <UModal v-model:open="openEdit" title="编辑资料">
       <template #body>
         <UForm class="space-y-4" @submit.prevent="saveProfile">
-          <UFormField label="姓名" name="name">
-            <UInput v-model="form.name" class="w-full" />
+          <UFormField
+            label="姓名"
+            name="name"
+            :description="nameLocked ? '由学校统一身份认证提供，不能修改' : undefined"
+          >
+            <UInput v-model="form.name" class="w-full" :disabled="nameLocked" />
           </UFormField>
           <UFormField label="简介" name="bio">
             <UTextarea v-model="form.bio" class="w-full" :rows="4" />
