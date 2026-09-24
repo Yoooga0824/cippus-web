@@ -137,19 +137,87 @@ const approvedAwards = computed(() => awardsList.value.filter((item) => item.sta
 const approvedPapers = computed(() => papersList.value.filter((item) => item.status === "approved"));
 const approvedPatents = computed(() => patentsList.value.filter((item) => item.status === "approved"));
 const approvedInnovations = computed(() => innovationsList.value.filter((item) => item.status === "approved"));
-// 个人主页不展示已拒绝的成果
+// 个人主页严格跟随“展示设置”：只展示已勾选且已通过审核的成果，本人视图与访客一致
+const displayAchievementIds = computed(() => {
+  const display = user.value?.displayAchievements || {};
+
+  return {
+    award: new Set(display.award || []),
+    paper: new Set(display.paper || []),
+    patent: new Set(display.patent || []),
+    innovation: new Set(display.innovation || []),
+  };
+});
 const visibleAwardsList = computed(() =>
-  awardsList.value.filter((item) => item.status !== "rejected"),
+  awardsList.value.filter(
+    (item) =>
+      item.status === "approved" && displayAchievementIds.value.award.has(item.id),
+  ),
 );
 const visiblePapersList = computed(() =>
-  papersList.value.filter((item) => item.status !== "rejected"),
+  papersList.value.filter(
+    (item) =>
+      item.status === "approved" && displayAchievementIds.value.paper.has(item.id),
+  ),
 );
 const visiblePatentsList = computed(() =>
-  patentsList.value.filter((item) => item.status !== "rejected"),
+  patentsList.value.filter(
+    (item) =>
+      item.status === "approved" && displayAchievementIds.value.patent.has(item.id),
+  ),
 );
 const visibleInnovationsList = computed(() =>
-  innovationsList.value.filter((item) => item.status !== "rejected"),
+  innovationsList.value.filter(
+    (item) =>
+      item.status === "approved" &&
+      displayAchievementIds.value.innovation.has(item.id),
+  ),
 );
+
+type DisplayKind = keyof typeof displayForm;
+
+const displayKindLabels: Record<DisplayKind, string> = {
+  award: "奖项",
+  paper: "论文",
+  patent: "专利",
+  innovation: "大创",
+};
+
+// 已勾选但当前不在“已通过”状态的成果：公开页不展示，但仍保留勾选状态，审核通过后自动恢复展示
+const undisplayableChecks = computed(() => {
+  const approvedIds: Record<DisplayKind, Set<number>> = {
+    award: new Set(approvedAwards.value.map((item) => item.id)),
+    paper: new Set(approvedPapers.value.map((item) => item.id)),
+    patent: new Set(approvedPatents.value.map((item) => item.id)),
+    innovation: new Set(approvedInnovations.value.map((item) => item.id)),
+  };
+  const labels: Record<DisplayKind, Map<number, string>> = {
+    award: new Map(
+      awardsList.value.map(
+        (item) => [item.id, item.contest?.title || "未知比赛"] as [number, string],
+      ),
+    ),
+    paper: new Map(
+      papersList.value.map((item) => [item.id, item.name] as [number, string]),
+    ),
+    patent: new Map(
+      patentsList.value.map((item) => [item.id, item.name] as [number, string]),
+    ),
+    innovation: new Map(
+      innovationsList.value.map((item) => [item.id, item.name] as [number, string]),
+    ),
+  };
+
+  return (Object.keys(displayForm) as DisplayKind[]).flatMap((kind) =>
+    displayForm[kind]
+      .filter((id) => !approvedIds[kind].has(id))
+      .map((id) => ({
+        kind,
+        id,
+        label: labels[kind].get(id) || `已失效的成果 #${id}`,
+      })),
+  );
+});
 const claimedInnovationSourceKeys = computed(() => {
   const claimed = new Set<string>();
 
@@ -944,7 +1012,7 @@ async function saveRecordDraft() {
             </UPageCard>
           </UPageGrid>
           <UEmpty
-            v-if="!isSelf && !visibleAwardsList.length"
+            v-if="!visibleAwardsList.length"
             variant="naked"
             title="暂无奖项"
           />
@@ -997,7 +1065,7 @@ async function saveRecordDraft() {
             </UPageCard>
           </UPageGrid>
           <UEmpty
-            v-if="!isSelf && !visiblePapersList.length"
+            v-if="!visiblePapersList.length"
             variant="naked"
             title="暂无论文"
           />
@@ -1052,7 +1120,7 @@ async function saveRecordDraft() {
             </UPageCard>
           </UPageGrid>
           <UEmpty
-            v-if="!isSelf && !visiblePatentsList.length"
+            v-if="!visiblePatentsList.length"
             variant="naked"
             title="暂无专利"
           />
@@ -1113,7 +1181,7 @@ async function saveRecordDraft() {
             </UPageCard>
           </UPageGrid>
           <UEmpty
-            v-if="!isSelf && !visibleInnovationsList.length"
+            v-if="!visibleInnovationsList.length"
             variant="naked"
             title="暂无大创"
           />
@@ -1174,7 +1242,7 @@ async function saveRecordDraft() {
             color="neutral"
             variant="subtle"
             title="只展示已审核通过的成就"
-            description="被勾选的内容会出现在公开资料卡片中，其他人可以通过搜索用户名访问。"
+            description="只有已通过审核的成果可以勾选；被勾选的内容会出现在公开资料卡片中，其他人可以通过搜索用户名访问。未勾选或未通过审核的成果都不会展示，本人看到的内容与访客一致。"
           />
 
           <section class="space-y-3">
@@ -1223,6 +1291,29 @@ async function saveRecordDraft() {
               @update:model-value="(checked) => toggleDisplay('innovation', innovation.id, Boolean(checked))"
             />
             <UEmpty v-if="!approvedInnovations.length" variant="naked" title="暂无已通过大创" />
+          </section>
+
+          <section v-if="undisplayableChecks.length" class="space-y-2">
+            <h3 class="text-sm font-medium">已勾选但暂不展示</h3>
+            <p class="text-sm text-muted">
+              以下成果当前不在“已通过”状态，公开资料中不会展示；重新审核通过后会自动恢复展示。
+            </p>
+            <div
+              v-for="item in undisplayableChecks"
+              :key="`${item.kind}-${item.id}`"
+              class="flex items-center justify-between gap-2"
+            >
+              <span class="text-sm text-muted">
+                {{ displayKindLabels[item.kind] }} · {{ item.label }}
+              </span>
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                label="取消勾选"
+                @click="toggleDisplay(item.kind, item.id, false)"
+              />
+            </div>
           </section>
         </div>
       </template>
