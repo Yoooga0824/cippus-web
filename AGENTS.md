@@ -26,7 +26,7 @@
 ## 鉴权与会话
 
 - 登录态来自 `nuxt-auth-utils`。
-- 会话用户只假定包含 `id`、`username`、`name`、`admin`。
+- 会话用户只假定包含 `id`、`username`、`name`、`admin`，以及可能缺失的 `avatar`（展示头像时必须兜底）。
 - 普通鉴权使用 `await getUserSession(event)` 或 `await requireUserSession(event)`。
 - 管理端 API 必须放在 `server/api/admin/**`，由 `server/middleware/admin.ts` 统一限制管理员访问。
 - 公开 API 应默认只读。公告、竞赛、活动、用户等管理写操作不要放在公开命名空间。

@@ -142,6 +142,7 @@ export default defineEventHandler(async (event) => {
       id: updatedUser.id,
       username: updatedUser.username,
       name: updatedUser.name,
+      avatar: updatedUser.avatar,
       admin: updatedUser.admin,
     },
   });

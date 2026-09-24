@@ -44,6 +44,7 @@ export default defineEventHandler(async (event) => {
         id: sessionUser.id,
         username,
         name: sessionName,
+        avatar: sessionUser.avatar ?? null,
         admin: sessionAdmin,
       },
     });

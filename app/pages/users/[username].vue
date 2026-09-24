@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const route = useRoute();
-const { user: sessionUser } = useUserSession();
+const { user: sessionUser, fetch: refreshSession } = useUserSession();
 const toast = useToast();
 const { t } = useI18n();
 
@@ -537,6 +537,7 @@ async function saveProfile() {
       },
     });
 
+    await refreshSession();
     await refreshUser();
     openEdit.value = false;
     toast.add({
@@ -645,6 +646,8 @@ async function onAvatarSelected(event: Event) {
       body: { avatar: uploaded.pathname },
     });
 
+    // 会话里也带着头像，刷新后导航栏才会同步
+    await refreshSession();
     await refreshUser();
     toast.add({
       title: "头像已更新",
