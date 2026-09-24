@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@nuxthub/db";
 import { z } from "zod";
 
@@ -16,7 +16,15 @@ const updateProfileSchema = z.object({
   displayAchievements: displayAchievementsSchema,
 });
 
-const achievementKeys = new Set(["award", "paper", "patent", "innovation"]);
+const achievementKeys = ["award", "paper", "patent", "innovation"] as const;
+type AchievementKey = (typeof achievementKeys)[number];
+
+const achievementTables: Record<AchievementKey, any> = {
+  award: schema.awards,
+  paper: schema.papers,
+  patent: schema.patents,
+  innovation: schema.innovations,
+};
 
 function toNullableText(value: unknown) {
   if (typeof value !== "string") {
@@ -27,21 +35,45 @@ function toNullableText(value: unknown) {
   return normalized.length > 0 ? normalized : null;
 }
 
-function normalizeDisplayAchievements(
+// 展示设置只允许保存“本人可见且已通过审核”的成果 id，
+// 防止删除记录或审核回退后留下失效勾选（前端也会同步过滤）。
+async function findDisplayableIds(kind: AchievementKey, username: string) {
+  const table = achievementTables[kind];
+  const rows: { id: number }[] = await db
+    .select({ id: table.id })
+    .from(table)
+    .where(
+      and(
+        sql`${table.members} @> ARRAY[${username}]::text[]`,
+        eq(table.status, "approved"),
+      ),
+    );
+
+  return new Set<number>(rows.map((row) => row.id));
+}
+
+async function normalizeDisplayAchievements(
   value: z.infer<typeof displayAchievementsSchema>,
+  username: string,
 ) {
   if (!value) {
     return undefined;
   }
 
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(([key]) => achievementKeys.has(key))
-      .map(([key, ids]) => [
-        key,
-        Array.from(new Set(ids)),
-      ]),
+  const entries = await Promise.all(
+    achievementKeys
+      .filter((kind) => Array.isArray(value[kind]))
+      .map(async (kind) => {
+        const allowedIds = await findDisplayableIds(kind, username);
+        const ids = Array.from(new Set(value[kind])).filter((id) =>
+          allowedIds.has(id),
+        );
+
+        return [kind, ids] as const;
+      }),
   );
+
+  return Object.fromEntries(entries);
 }
 
 export default defineEventHandler(async (event) => {
@@ -50,7 +82,10 @@ export default defineEventHandler(async (event) => {
 
   const body = updateProfileSchema.parse(await readBody(event));
   const nextPassword = typeof body.password === "string" ? body.password.trim() : "";
-  const displayAchievements = normalizeDisplayAchievements(body.displayAchievements);
+  const displayAchievements = await normalizeDisplayAchievements(
+    body.displayAchievements,
+    username,
+  );
   const updateBody = {
     ...("name" in body ? { name: toNullableText(body.name) } : {}),
     ...("bio" in body ? { bio: toNullableText(body.bio) } : {}),

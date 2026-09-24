@@ -176,48 +176,6 @@ const visibleInnovationsList = computed(() =>
 
 type DisplayKind = keyof typeof displayForm;
 
-const displayKindLabels: Record<DisplayKind, string> = {
-  award: "奖项",
-  paper: "论文",
-  patent: "专利",
-  innovation: "大创",
-};
-
-// 已勾选但当前不在“已通过”状态的成果：公开页不展示，但仍保留勾选状态，审核通过后自动恢复展示
-const undisplayableChecks = computed(() => {
-  const approvedIds: Record<DisplayKind, Set<number>> = {
-    award: new Set(approvedAwards.value.map((item) => item.id)),
-    paper: new Set(approvedPapers.value.map((item) => item.id)),
-    patent: new Set(approvedPatents.value.map((item) => item.id)),
-    innovation: new Set(approvedInnovations.value.map((item) => item.id)),
-  };
-  const labels: Record<DisplayKind, Map<number, string>> = {
-    award: new Map(
-      awardsList.value.map(
-        (item) => [item.id, item.contest?.title || "未知比赛"] as [number, string],
-      ),
-    ),
-    paper: new Map(
-      papersList.value.map((item) => [item.id, item.name] as [number, string]),
-    ),
-    patent: new Map(
-      patentsList.value.map((item) => [item.id, item.name] as [number, string]),
-    ),
-    innovation: new Map(
-      innovationsList.value.map((item) => [item.id, item.name] as [number, string]),
-    ),
-  };
-
-  return (Object.keys(displayForm) as DisplayKind[]).flatMap((kind) =>
-    displayForm[kind]
-      .filter((id) => !approvedIds[kind].has(id))
-      .map((id) => ({
-        kind,
-        id,
-        label: labels[kind].get(id) || `已失效的成果 #${id}`,
-      })),
-  );
-});
 const claimedInnovationSourceKeys = computed(() => {
   const claimed = new Set<string>();
 
@@ -466,10 +424,19 @@ function startEdit() {
 
 function syncDisplayForm() {
   const displayAchievements = (user.value?.displayAchievements || {}) as Record<string, number[]>;
-  displayForm.award = [...(displayAchievements.award || [])];
-  displayForm.paper = [...(displayAchievements.paper || [])];
-  displayForm.patent = [...(displayAchievements.patent || [])];
-  displayForm.innovation = [...(displayAchievements.innovation || [])];
+  const displayableIds: Record<DisplayKind, Set<number>> = {
+    award: new Set(approvedAwards.value.map((item) => item.id)),
+    paper: new Set(approvedPapers.value.map((item) => item.id)),
+    patent: new Set(approvedPatents.value.map((item) => item.id)),
+    innovation: new Set(approvedInnovations.value.map((item) => item.id)),
+  };
+
+  // 记录被删除或审核回退后，历史勾选会失效，这里不再回填，保存时即被清理
+  for (const kind of Object.keys(displayForm) as DisplayKind[]) {
+    displayForm[kind] = (displayAchievements[kind] || []).filter((id) =>
+      displayableIds[kind].has(id),
+    );
+  }
 }
 
 function startDisplay() {
@@ -1242,7 +1209,7 @@ async function saveRecordDraft() {
             color="neutral"
             variant="subtle"
             title="只展示已审核通过的成就"
-            description="只有已通过审核的成果可以勾选；被勾选的内容会出现在公开资料卡片中，其他人可以通过搜索用户名访问。未勾选或未通过审核的成果都不会展示，本人看到的内容与访客一致。"
+            description="只有已通过审核的成果可以勾选；被勾选的内容会出现在公开资料卡片中，其他人可以通过搜索用户名访问。本人看到的内容与访客一致，记录被删除或审核回退后失效的勾选会在下次保存时自动清理。"
           />
 
           <section class="space-y-3">
@@ -1291,29 +1258,6 @@ async function saveRecordDraft() {
               @update:model-value="(checked) => toggleDisplay('innovation', innovation.id, Boolean(checked))"
             />
             <UEmpty v-if="!approvedInnovations.length" variant="naked" title="暂无已通过大创" />
-          </section>
-
-          <section v-if="undisplayableChecks.length" class="space-y-2">
-            <h3 class="text-sm font-medium">已勾选但暂不展示</h3>
-            <p class="text-sm text-muted">
-              以下成果当前不在“已通过”状态，公开资料中不会展示；重新审核通过后会自动恢复展示。
-            </p>
-            <div
-              v-for="item in undisplayableChecks"
-              :key="`${item.kind}-${item.id}`"
-              class="flex items-center justify-between gap-2"
-            >
-              <span class="text-sm text-muted">
-                {{ displayKindLabels[item.kind] }} · {{ item.label }}
-              </span>
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                label="取消勾选"
-                @click="toggleDisplay(item.kind, item.id, false)"
-              />
-            </div>
           </section>
         </div>
       </template>
