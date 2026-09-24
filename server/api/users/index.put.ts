@@ -135,10 +135,13 @@ export default defineEventHandler(async (event) => {
     ...(displayAchievements ? { displayAchievements } : {}),
   };
 
-  await db
-    .update(schema.users)
-    .set(updateBody)
-    .where(eq(schema.users.username, username));
+  // 白名单过滤后可能没有可写字段（例如只提交了后台控制字段），此时跳过写库，避免空 set 报错
+  if (Object.keys(updateBody).length) {
+    await db
+      .update(schema.users)
+      .set(updateBody)
+      .where(eq(schema.users.username, username));
+  }
 
   const updatedUser = await db.query.users.findFirst({
     where: eq(schema.users.username, username),
