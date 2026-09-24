@@ -1034,7 +1034,7 @@ async function saveRecordDraft() {
         </UPageCard>
 
         <UPageCard title="奖项">
-          <UPageGrid cols="1 sm:2 md:3" gap="4" class="mt-4">
+          <UPageGrid v-spotlight cols="1 sm:2 md:3" gap="4" class="mt-4">
             <UPageCard
               v-for="award in visibleAwardsList"
               :key="award.id"
@@ -1092,7 +1092,7 @@ async function saveRecordDraft() {
         </UPageCard>
 
         <UPageCard title="论文">
-          <UPageGrid cols="1 sm:2 md:3" gap="4" class="mt-4">
+          <UPageGrid v-spotlight cols="1 sm:2 md:3" gap="4" class="mt-4">
             <UPageCard
               v-for="paper in visiblePapersList"
               :key="paper.id"
@@ -1145,7 +1145,7 @@ async function saveRecordDraft() {
         </UPageCard>
 
         <UPageCard title="专利">
-          <UPageGrid cols="1 sm:2 md:3" gap="4" class="mt-4">
+          <UPageGrid v-spotlight cols="1 sm:2 md:3" gap="4" class="mt-4">
             <UPageCard
               v-for="patent in visiblePatentsList"
               :key="patent.id"
@@ -1200,7 +1200,7 @@ async function saveRecordDraft() {
         </UPageCard>
 
         <UPageCard title="大创">
-          <UPageGrid cols="1 sm:2 md:3" gap="4" class="mt-4">
+          <UPageGrid v-spotlight cols="1 sm:2 md:3" gap="4" class="mt-4">
             <UPageCard
               v-for="innovation in visibleInnovationsList"
               :key="innovation.id"

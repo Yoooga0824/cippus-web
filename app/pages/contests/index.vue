@@ -59,7 +59,7 @@ const posts = computed(() => {
           @click="() => { selectedLetter = item.value }"
         />
       </UButtonGroup>
-      <UBlogPosts :posts />
+      <UBlogPosts v-spotlight :posts />
     </UPageBody>
   </UContainer>
 </template>

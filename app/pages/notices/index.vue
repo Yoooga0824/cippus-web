@@ -21,7 +21,7 @@ const posts = computed(() => {
   <UContainer>
     <UPageHeader title="公告列表" />
     <UPageBody>
-      <UBlogPosts :posts />
+      <UBlogPosts v-spotlight :posts />
     </UPageBody>
   </UContainer>
 </template>
